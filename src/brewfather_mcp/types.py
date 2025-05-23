@@ -109,7 +109,7 @@ class Hop(InventoryItem):
     inventory: float
     name: str
     type: str
-    use: str
+    use: str | None = None
 
     model_config = {
         "populate_by_name": True,
@@ -136,30 +136,26 @@ class HopDetail(Hop):
     year: int | None = None
     usage: str | None = None
     origin: str | None = None
-    rev: str = Field(alias="_rev")
+    rev: str | None = Field(alias="_rev", default=None)
     oil: float | None = None
-    timestamp: Timestamp = Field(alias="_timestamp")
-    version: str = Field(alias="_version")
+    timestamp: Timestamp | None = Field(alias="_timestamp", default=None)
+    version: str | None = Field(alias="_version", default=None)
     beta: float | None = None
     amount: float | None = None
     temp: float | None = None
     substitutes: str = ""
-    best_before_date: str | None = Field(
-        alias="bestBeforeDate", default=None
-    )  # Unix timestamp in milliseconds
+    best_before_date: str | None = Field(alias="bestBeforeDate", default=None)
     used_in: str = Field(alias="usedIn", default="")
     myrcene: float | None = None
-    timestamp_ms: int = Field(alias="_timestamp_ms")
+    timestamp_ms: int | None = Field(alias="_timestamp_ms", default=None)
     cohumulone: float | None = None
     humulene: float | None = None
-    created: Timestamp = Field(alias="_created")
-    manufacturing_date: str | None = Field(
-        alias="manufacturingDate", default=None
-    )  # Unix timestamp in milliseconds
+    created: Timestamp | None = Field(alias="_created", default=None)
+    manufacturing_date: str | None = Field(alias="manufacturingDate", default=None)
     time: int | None = None
     user_notes: str = Field(alias="userNotes", default="")
     ibu: float = 0
-    hsi: float | None = None  # Hop Storage Index
+    hsi: float | None = None
     lot_number: str | None = Field(alias="lotNumber", default=None)
 
     model_config = {
