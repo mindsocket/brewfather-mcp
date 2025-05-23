@@ -11,7 +11,11 @@ from brewfather_mcp.inventory import (
     get_fermentables_summary,
     get_hops_summary,
     get_yeast_summary,
+    get_miscs_summary, # Assuming you will create this in inventory.py
 )
+from typing import Optional
+from datetime import datetime
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -325,4 +329,288 @@ async def inventory_summary() -> str:
         return response
     except Exception:
         logger.exception("Failed to show inventory summary")
+        raise
+
+
+# Batch Endpoints
+@mcp.resource(
+    uri="brewfather://batches",
+    name="List Batches",
+    description="Lists all brew batches.",
+)
+async def read_batches_list() -> str:
+    logger.info("received request for batches list")
+    try:
+        data = await brewfather_client.get_batches_list()
+        formatted_response: list[str] = []
+        for item in data.root:
+            brew_date_str = (
+                datetime.fromtimestamp(item.brew_date / 1000).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+                if item.brew_date
+                else "N/A"
+            )
+            formatted = f"""ID: {item.id}
+Name: {item.name}
+Batch Number: {item.batch_number or 'N/A'}
+Status: {item.status or 'N/A'}
+Brewer: {item.brewer or 'N/A'}
+Brew Date: {brew_date_str}
+Recipe Name: {item.recipe_name or 'N/A'}
+"""
+            formatted_response.append(formatted)
+        return "---\n".join(formatted_response) if formatted_response else "No batches found."
+    except Exception:
+        logger.exception("Error happened while fetching batches list")
+        raise
+
+
+@mcp.resource(
+    uri="brewfather://batches/{batch_id}",
+    name="Batch Detail",
+    description="Get detailed information for a specific batch.",
+)
+async def read_batch_detail(batch_id: str) -> str:
+    logger.info(f"received request for batch detail: {batch_id}")
+    try:
+        item = await brewfather_client.get_batch_detail(batch_id)
+        brew_date_str = (
+            datetime.fromtimestamp(item.brew_date / 1000).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            if item.brew_date
+            else "N/A"
+        )
+        # This is a simplified representation; a full Batch model would have many more fields.
+        # Refer to Brewfather API docs for all available fields if needed.
+        formatted_response = f"""ID: {item.id}
+Name: {item.name}
+Batch Number: {item.batch_number or 'N/A'}
+Status: {item.status or 'N/A'}
+Brewer: {item.brewer or 'N/A'}
+Brew Date: {brew_date_str}
+Recipe Name: {item.recipe_name or 'N/A'}
+"""
+        # Add more fields as necessary from the item object
+        return formatted_response
+    except Exception:
+        logger.exception(f"Error happened while fetching batch detail for {batch_id}")
+        raise
+
+
+@mcp.tool(
+    name="Update Batch",
+    description="Updates a batch's status or measured values.",
+)
+async def update_batch(
+    batch_id: str,
+    status: Optional[str] = None,
+    measuredMashPh: Optional[float] = None,
+    measuredBoilSize: Optional[float] = None,
+    measuredFirstWortGravity: Optional[float] = None,
+    measuredPreBoilGravity: Optional[float] = None,
+    measuredPostBoilGravity: Optional[float] = None,
+    measuredKettleSize: Optional[float] = None,
+    measuredOg: Optional[float] = None,
+    measuredFermenterTopUp: Optional[float] = None,
+    measuredBatchSize: Optional[float] = None,
+    measuredFg: Optional[float] = None,
+    measuredBottlingSize: Optional[float] = None,
+    carbonationTemp: Optional[float] = None,
+) -> str:
+    logger.info(f"received request to update batch: {batch_id}")
+    update_data = {}
+    if status:
+        update_data["status"] = status
+    if measuredMashPh is not None:
+        update_data["measuredMashPh"] = measuredMashPh
+    if measuredBoilSize is not None:
+        update_data["measuredBoilSize"] = measuredBoilSize
+    if measuredFirstWortGravity is not None:
+        update_data["measuredFirstWortGravity"] = measuredFirstWortGravity
+    if measuredPreBoilGravity is not None:
+        update_data["measuredPreBoilGravity"] = measuredPreBoilGravity
+    if measuredPostBoilGravity is not None:
+        update_data["measuredPostBoilGravity"] = measuredPostBoilGravity
+    if measuredKettleSize is not None:
+        update_data["measuredKettleSize"] = measuredKettleSize
+    if measuredOg is not None:
+        update_data["measuredOg"] = measuredOg
+    if measuredFermenterTopUp is not None:
+        update_data["measuredFermenterTopUp"] = measuredFermenterTopUp
+    if measuredBatchSize is not None:
+        update_data["measuredBatchSize"] = measuredBatchSize
+    if measuredFg is not None:
+        update_data["measuredFg"] = measuredFg
+    if measuredBottlingSize is not None:
+        update_data["measuredBottlingSize"] = measuredBottlingSize
+    if carbonationTemp is not None:
+        update_data["carbonationTemp"] = carbonationTemp
+
+    if not update_data:
+        return "No update parameters provided."
+
+    try:
+        await brewfather_client.update_batch_detail(batch_id, update_data)
+        return f"Batch {batch_id} updated successfully."
+    except Exception:
+        logger.exception(f"Error happened while updating batch {batch_id}")
+        raise
+
+
+# Recipe Endpoints
+@mcp.resource(
+    uri="brewfather://recipes",
+    name="List Recipes",
+    description="Lists all recipes.",
+)
+async def read_recipes_list() -> str:
+    logger.info("received request for recipes list")
+    try:
+        data = await brewfather_client.get_recipes_list()
+        formatted_response: list[str] = []
+        for item in data.root:
+            formatted = f"""ID: {item.id}
+Name: {item.name}
+Author: {item.author or 'N/A'}
+Style: {item.style_name or 'N/A'}
+Type: {item.type or 'N/A'}
+"""
+            formatted_response.append(formatted)
+        return "---\n".join(formatted_response) if formatted_response else "No recipes found."
+    except Exception:
+        logger.exception("Error happened while fetching recipes list")
+        raise
+
+
+@mcp.resource(
+    uri="brewfather://recipes/{recipe_id}",
+    name="Recipe Detail",
+    description="Get detailed information for a specific recipe.",
+)
+async def read_recipe_detail(recipe_id: str) -> str:
+    logger.info(f"received request for recipe detail: {recipe_id}")
+    try:
+        # Assuming Recipe model in types.py might be simple.
+        # For full details, the Recipe model would need to be comprehensive.
+        item = await brewfather_client.get_recipe_detail(recipe_id)
+        formatted_response = f"""ID: {item.id}
+Name: {item.name}
+Author: {item.author or 'N/A'}
+Style: {item.style_name or 'N/A'}
+Type: {item.type or 'N/A'}
+"""
+        # Add more fields as necessary from the item object
+        # e.g., item.notes, item.data.mash.name, etc.
+        # This requires RecipeDetail model to be defined in types.py and used in api.py
+        return formatted_response
+    except Exception:
+        logger.exception(f"Error happened while fetching recipe detail for {recipe_id}")
+        raise
+
+
+# Miscellaneous Inventory Endpoints
+@mcp.resource(
+    uri="inventory://miscs",
+    name="Miscellaneous Inventory",
+    description="Lists all miscellaneous inventory items.",
+)
+async def read_miscs_list() -> str:
+    logger.info("received request for miscellaneous inventory list")
+    try:
+        data = await brewfather_client.get_miscs_list()
+        formatted_response: list[str] = []
+        for item in data.root:
+            formatted = f"""ID: {item.id}
+Name: {item.name}
+Type: {item.type or 'N/A'}
+Inventory: {item.inventory} units (actual unit depends on item)
+Notes: {item.notes or 'N/A'}
+"""
+            formatted_response.append(formatted)
+        return "---\n".join(formatted_response) if formatted_response else "No miscellaneous items found."
+    except Exception:
+        logger.exception("Error happened while fetching miscellaneous inventory list")
+        raise
+
+
+@mcp.resource(
+    uri="inventory://miscs/{item_id}",
+    name="Miscellaneous Item Detail",
+    description="Get detailed information for a specific miscellaneous inventory item.",
+)
+async def read_misc_detail(item_id: str) -> str:
+    logger.info(f"received request for miscellaneous item detail: {item_id}")
+    try:
+        # Assuming Miscellaneous model in types.py might be simple for list view.
+        # For full details, a MiscellaneousDetail model would be needed.
+        item = await brewfather_client.get_misc_detail(item_id)
+        formatted_response = f"""ID: {item.id}
+Name: {item.name}
+Type: {item.type or 'N/A'}
+Inventory: {item.inventory} units
+Notes: {item.notes or 'N/A'}
+"""
+        # Add more fields if a more detailed model (e.g., MiscellaneousDetail) is implemented
+        return formatted_response
+    except Exception:
+        logger.exception(f"Error happened while fetching miscellaneous item detail for {item_id}")
+        raise
+
+
+# Inventory Update Tools
+@mcp.tool(
+    name="Update Fermentable Inventory",
+    description="Sets the inventory amount for a specific fermentable.",
+)
+async def update_fermentable_inventory_tool(item_id: str, inventory_amount: float) -> str:
+    logger.info(f"Tool: update_fermentable_inventory_tool called for item {item_id} with amount {inventory_amount}")
+    try:
+        await brewfather_client.update_fermentable_inventory(item_id, inventory_amount)
+        return f"Fermentable inventory for item {item_id} updated to {inventory_amount} kg."
+    except Exception:
+        logger.exception(f"Error updating fermentable inventory for item {item_id}")
+        raise
+
+
+@mcp.tool(
+    name="Update Hop Inventory",
+    description="Sets the inventory amount for a specific hop.",
+)
+async def update_hop_inventory_tool(item_id: str, inventory_amount: float) -> str:
+    logger.info(f"Tool: update_hop_inventory_tool called for item {item_id} with amount {inventory_amount}")
+    try:
+        await brewfather_client.update_hop_inventory(item_id, inventory_amount)
+        return f"Hop inventory for item {item_id} updated to {inventory_amount} grams."
+    except Exception:
+        logger.exception(f"Error updating hop inventory for item {item_id}")
+        raise
+
+
+@mcp.tool(
+    name="Update Miscellaneous Inventory",
+    description="Sets the inventory amount for a specific miscellaneous item.",
+)
+async def update_misc_inventory_tool(item_id: str, inventory_amount: float) -> str:
+    logger.info(f"Tool: update_misc_inventory_tool called for item {item_id} with amount {inventory_amount}")
+    try:
+        await brewfather_client.update_misc_inventory(item_id, inventory_amount)
+        return f"Miscellaneous inventory for item {item_id} updated to {inventory_amount} units."
+    except Exception:
+        logger.exception(f"Error updating miscellaneous inventory for item {item_id}")
+        raise
+
+
+@mcp.tool(
+    name="Update Yeast Inventory",
+    description="Sets the inventory amount for a specific yeast.",
+)
+async def update_yeast_inventory_tool(item_id: str, inventory_amount: float) -> str:
+    logger.info(f"Tool: update_yeast_inventory_tool called for item {item_id} with amount {inventory_amount}")
+    try:
+        await brewfather_client.update_yeast_inventory(item_id, inventory_amount)
+        return f"Yeast inventory for item {item_id} updated to {inventory_amount} packets."
+    except Exception:
+        logger.exception(f"Error updating yeast inventory for item {item_id}")
         raise

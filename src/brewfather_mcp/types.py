@@ -39,6 +39,25 @@ class FermentableList(RootModel[list[Fermentable]]):
     pass
 
 
+class Miscellaneous(InventoryItem):
+    """Basic miscellaneous item model with essential properties."""
+
+    name: str
+    type: str | None = None
+    inventory: float = 0.0
+    notes: str | None = None
+
+    model_config = {
+        "populate_by_name": True,
+    }
+
+
+class MiscellaneousList(RootModel[list[Miscellaneous]]):
+    """A collection of miscellaneous items."""
+
+    pass
+
+
 class Timestamp(BaseModel):
     """Represents a timestamp with seconds and nanoseconds."""
 
@@ -240,6 +259,46 @@ class YeastDetail(Yeast):
 class OrderByDirection(StrEnum):
     ASCENDING = "asc"
     DESCENDING = "desc"
+
+
+class Batch(InventoryItem):
+    """Represents a batch with common fields."""
+
+    name: str
+    batch_number: int | None = Field(alias="batchNumber", default=None)
+    status: str | None = None
+    brewer: str | None = None
+    brew_date: int | None = Field(alias="brewDate", default=None) # Timestamp in milliseconds
+    recipe_name: str | None = Field(alias="recipeName", default=None)
+
+    model_config = {
+        "populate_by_name": True,
+    }
+
+
+class BatchList(RootModel[list[Batch]]):
+    """A collection of batches."""
+
+    pass
+
+
+class Recipe(InventoryItem):
+    """Represents a recipe with common fields."""
+
+    name: str
+    author: str | None = None
+    style_name: str | None = Field(alias="styleName", default=None)
+    type: str | None = None
+
+    model_config = {
+        "populate_by_name": True,
+    }
+
+
+class RecipeList(RootModel[list[Recipe]]):
+    """A collection of recipes."""
+
+    pass
 
 
 class ListQueryParams:

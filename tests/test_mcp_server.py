@@ -13,13 +13,31 @@ from brewfather_mcp.server import (
     read_yeasts_detail,
     inventory_summary,
     styles_based_inventory_prompt,
+    read_batches_list,
+    read_batch_detail,
+    update_batch,
+    read_recipes_list,
+    read_recipe_detail,
+    read_miscs_list,
+    read_misc_detail,
+    update_fermentable_inventory_tool,
+    update_hop_inventory_tool,
+    update_misc_inventory_tool,
+    update_yeast_inventory_tool,
 )
 from brewfather_mcp.api import BrewfatherInventoryClient
 from brewfather_mcp.types import (
+    Batch,
+    BatchList,
     FermentableList,
     HopList,
+    Miscellaneous,
+    MiscellaneousList,
+    Recipe,
+    RecipeList,
     YeastList,
 )
+from datetime import datetime
 
 
 @pytest.fixture
@@ -136,6 +154,57 @@ def mock_brewfather_client(mocker):
     yeasts_list.root = [yeast]
     client.get_yeasts_list.return_value = yeasts_list
     client.get_yeast_detail.return_value = yeast
+
+    # Mock Batch data
+    batch = MagicMock(
+        spec=Batch,
+        id="test-batch-id",
+        name="Test Batch",
+        batch_number=1,
+        status="Fermenting",
+        brewer="Test Brewer",
+        brew_date=int(datetime.now().timestamp() * 1000), # milliseconds
+        recipe_name="Test Recipe"
+    )
+    batches_list = MagicMock(spec=BatchList)
+    batches_list.root = [batch]
+    client.get_batches_list.return_value = batches_list
+    client.get_batch_detail.return_value = batch
+    client.update_batch_detail.return_value = None # Typically PATCH doesn't return content
+
+    # Mock Recipe data
+    recipe = MagicMock(
+        spec=Recipe,
+        id="test-recipe-id",
+        name="Test Recipe",
+        author="Test Author",
+        style_name="Test Style",
+        type="All Grain"
+    )
+    recipes_list = MagicMock(spec=RecipeList)
+    recipes_list.root = [recipe]
+    client.get_recipes_list.return_value = recipes_list
+    client.get_recipe_detail.return_value = recipe
+
+    # Mock Miscellaneous data
+    misc_item = MagicMock(
+        spec=Miscellaneous,
+        id="test-misc-id",
+        name="Test Misc Item",
+        type="Fining",
+        inventory=10.0,
+        notes="Test notes for misc"
+    )
+    miscs_list = MagicMock(spec=MiscellaneousList)
+    miscs_list.root = [misc_item]
+    client.get_miscs_list.return_value = miscs_list
+    client.get_misc_detail.return_value = misc_item
+
+    # Mock inventory update methods
+    client.update_fermentable_inventory.return_value = None
+    client.update_hop_inventory.return_value = None
+    client.update_misc_inventory.return_value = None
+    client.update_yeast_inventory.return_value = None
 
     return client
 
@@ -254,3 +323,179 @@ class TestBrewfatherMCP:
                 await read_fermentables()
 
             mock_logger.exception.assert_called_once()
+
+    # --- Batch Endpoint Tests ---
+    @pytest.mark.asyncio
+    async def test_read_batches_list_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            result = await read_batches_list()
+            mock_brewfather_client.get_batches_list.assert_called_once()
+            assert "Name: Test Batch" in result
+            assert "Batch Number: 1" in result
+            assert "Status: Fermenting" in result
+
+    @pytest.mark.asyncio
+    async def test_read_batches_list_error(self, mock_brewfather_client):
+        mock_brewfather_client.get_batches_list.side_effect = Exception("API Error Batches")
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client), \
+             patch("brewfather_mcp.server.logger") as mock_logger:
+            with pytest.raises(Exception, match="API Error Batches"):
+                await read_batches_list()
+            mock_logger.exception.assert_called_once_with("Error happened while fetching batches list")
+
+    @pytest.mark.asyncio
+    async def test_read_batch_detail_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            result = await read_batch_detail("test-batch-id")
+            mock_brewfather_client.get_batch_detail.assert_called_once_with("test-batch-id")
+            assert "Name: Test Batch" in result
+            assert "Recipe Name: Test Recipe" in result
+
+    @pytest.mark.asyncio
+    async def test_read_batch_detail_error(self, mock_brewfather_client):
+        mock_brewfather_client.get_batch_detail.side_effect = Exception("API Error Batch Detail")
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client), \
+             patch("brewfather_mcp.server.logger") as mock_logger:
+            with pytest.raises(Exception, match="API Error Batch Detail"):
+                await read_batch_detail("test-batch-id")
+            mock_logger.exception.assert_called_once_with("Error happened while fetching batch detail for test-batch-id")
+
+    @pytest.mark.asyncio
+    async def test_update_batch_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            update_payload = {"status": "Completed"}
+            result = await update_batch(batch_id="test-batch-id", status="Completed")
+            mock_brewfather_client.update_batch_detail.assert_called_once_with("test-batch-id", update_payload)
+            assert result == "Batch test-batch-id updated successfully."
+
+    @pytest.mark.asyncio
+    async def test_update_batch_no_params(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            result = await update_batch(batch_id="test-batch-id")
+            mock_brewfather_client.update_batch_detail.assert_not_called()
+            assert result == "No update parameters provided."
+
+    @pytest.mark.asyncio
+    async def test_update_batch_error(self, mock_brewfather_client):
+        mock_brewfather_client.update_batch_detail.side_effect = Exception("API Error Update Batch")
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client), \
+             patch("brewfather_mcp.server.logger") as mock_logger:
+            with pytest.raises(Exception, match="API Error Update Batch"):
+                await update_batch(batch_id="test-batch-id", status="Failed")
+            mock_logger.exception.assert_called_once_with("Error happened while updating batch test-batch-id")
+
+    # --- Recipe Endpoint Tests ---
+    @pytest.mark.asyncio
+    async def test_read_recipes_list_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            result = await read_recipes_list()
+            mock_brewfather_client.get_recipes_list.assert_called_once()
+            assert "Name: Test Recipe" in result
+            assert "Author: Test Author" in result
+
+    @pytest.mark.asyncio
+    async def test_read_recipes_list_error(self, mock_brewfather_client):
+        mock_brewfather_client.get_recipes_list.side_effect = Exception("API Error Recipes")
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client), \
+             patch("brewfather_mcp.server.logger") as mock_logger:
+            with pytest.raises(Exception, match="API Error Recipes"):
+                await read_recipes_list()
+            mock_logger.exception.assert_called_once_with("Error happened while fetching recipes list")
+
+    @pytest.mark.asyncio
+    async def test_read_recipe_detail_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            result = await read_recipe_detail("test-recipe-id")
+            mock_brewfather_client.get_recipe_detail.assert_called_once_with("test-recipe-id")
+            assert "Name: Test Recipe" in result
+            assert "Style: Test Style" in result
+
+    @pytest.mark.asyncio
+    async def test_read_recipe_detail_error(self, mock_brewfather_client):
+        mock_brewfather_client.get_recipe_detail.side_effect = Exception("API Error Recipe Detail")
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client), \
+             patch("brewfather_mcp.server.logger") as mock_logger:
+            with pytest.raises(Exception, match="API Error Recipe Detail"):
+                await read_recipe_detail("test-recipe-id")
+            mock_logger.exception.assert_called_once_with("Error happened while fetching recipe detail for test-recipe-id")
+
+    # --- Miscellaneous Inventory Endpoint Tests ---
+    @pytest.mark.asyncio
+    async def test_read_miscs_list_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            result = await read_miscs_list()
+            mock_brewfather_client.get_miscs_list.assert_called_once()
+            assert "Name: Test Misc Item" in result
+            assert "Type: Fining" in result
+
+    @pytest.mark.asyncio
+    async def test_read_miscs_list_error(self, mock_brewfather_client):
+        mock_brewfather_client.get_miscs_list.side_effect = Exception("API Error Miscs")
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client), \
+             patch("brewfather_mcp.server.logger") as mock_logger:
+            with pytest.raises(Exception, match="API Error Miscs"):
+                await read_miscs_list()
+            mock_logger.exception.assert_called_once_with("Error happened while fetching miscellaneous inventory list")
+
+    @pytest.mark.asyncio
+    async def test_read_misc_detail_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            result = await read_misc_detail("test-misc-id")
+            mock_brewfather_client.get_misc_detail.assert_called_once_with("test-misc-id")
+            assert "Name: Test Misc Item" in result
+            assert "Notes: Test notes for misc" in result
+
+    @pytest.mark.asyncio
+    async def test_read_misc_detail_error(self, mock_brewfather_client):
+        mock_brewfather_client.get_misc_detail.side_effect = Exception("API Error Misc Detail")
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client), \
+             patch("brewfather_mcp.server.logger") as mock_logger:
+            with pytest.raises(Exception, match="API Error Misc Detail"):
+                await read_misc_detail("test-misc-id")
+            mock_logger.exception.assert_called_once_with("Error happened while fetching miscellaneous item detail for test-misc-id")
+
+    # --- Inventory Update Tool Tests ---
+    @pytest.mark.asyncio
+    async def test_update_fermentable_inventory_tool_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            item_id = "f123"
+            amount = 10.5
+            result = await update_fermentable_inventory_tool(item_id, amount)
+            mock_brewfather_client.update_fermentable_inventory.assert_called_once_with(item_id, amount)
+            assert result == f"Fermentable inventory for item {item_id} updated to {amount} kg."
+
+    @pytest.mark.asyncio
+    async def test_update_fermentable_inventory_tool_error(self, mock_brewfather_client):
+        mock_brewfather_client.update_fermentable_inventory.side_effect = Exception("API Error Update Fermentable")
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client), \
+             patch("brewfather_mcp.server.logger") as mock_logger:
+            with pytest.raises(Exception, match="API Error Update Fermentable"):
+                await update_fermentable_inventory_tool("f123", 10.0)
+            mock_logger.exception.assert_called_once_with("Error updating fermentable inventory for item f123")
+
+    @pytest.mark.asyncio
+    async def test_update_hop_inventory_tool_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            item_id = "h123"
+            amount = 200.0
+            result = await update_hop_inventory_tool(item_id, amount)
+            mock_brewfather_client.update_hop_inventory.assert_called_once_with(item_id, amount)
+            assert result == f"Hop inventory for item {item_id} updated to {amount} grams."
+
+    @pytest.mark.asyncio
+    async def test_update_misc_inventory_tool_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            item_id = "m123"
+            amount = 5.0
+            result = await update_misc_inventory_tool(item_id, amount)
+            mock_brewfather_client.update_misc_inventory.assert_called_once_with(item_id, amount)
+            assert result == f"Miscellaneous inventory for item {item_id} updated to {amount} units."
+
+    @pytest.mark.asyncio
+    async def test_update_yeast_inventory_tool_success(self, mock_brewfather_client):
+        with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
+            item_id = "y123"
+            amount = 3.0
+            result = await update_yeast_inventory_tool(item_id, amount)
+            mock_brewfather_client.update_yeast_inventory.assert_called_once_with(item_id, amount)
+            assert result == f"Yeast inventory for item {item_id} updated to {amount} packets."
