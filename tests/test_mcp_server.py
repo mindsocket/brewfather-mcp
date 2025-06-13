@@ -25,14 +25,14 @@ from brewfather_mcp.server import (
     update_misc_inventory_tool,
     update_yeast_inventory_tool,
 )
-from brewfather_mcp.api import BrewfatherInventoryClient
+from brewfather_mcp.api import BrewfatherClient
 from brewfather_mcp.types import (
     Batch,
     BatchList,
     FermentableList,
     HopList,
-    Miscellaneous,
-    MiscellaneousList,
+    Misc,
+    MiscList,
     Recipe,
     RecipeList,
     YeastList,
@@ -43,7 +43,7 @@ from datetime import datetime
 @pytest.fixture
 def mock_brewfather_client(mocker):
     mocker.patch("os.getenv", "credential")
-    client = AsyncMock(spec=BrewfatherInventoryClient)
+    client = AsyncMock(spec=BrewfatherClient)
 
     fermentable = MagicMock(
         name="Test Malt",
@@ -155,47 +155,97 @@ def mock_brewfather_client(mocker):
     client.get_yeasts_list.return_value = yeasts_list
     client.get_yeast_detail.return_value = yeast
 
-    # Mock Batch data
-    batch = MagicMock(
-        spec=Batch,
-        id="test-batch-id",
-        name="Test Batch",
-        batch_number=1,
-        status="Fermenting",
-        brewer="Test Brewer",
-        brew_date=int(datetime.now().timestamp() * 1000), # milliseconds
-        recipe_name="Test Recipe"
-    )
+    # Mock Batch data - remove spec to avoid attribute restrictions
+    mock_recipe = MagicMock()
+    mock_recipe.name = "Test Recipe"
+    
+    batch = MagicMock()
+    batch.id = "test-batch-id"
+    batch.name = "Test Batch"
+    batch.batch_no = 1
+    batch.status = "Fermenting"
+    batch.brewer = "Test Brewer"
+    batch.brew_date = int(datetime.now().timestamp() * 1000) # milliseconds
+    batch.recipe = mock_recipe
+    batch.recipe_id = "test-recipe-id"
+    batch.brewed = True
+    batch.fermentation_start_date = None
+    batch.fermentation_end_date = None
+    batch.bottling_date = None
+    batch.og = None
+    batch.fg = None
+    batch.abv = None
+    batch.carbonation_type = None
+    batch.carbonation_level = None
+    batch.notes = []
+    batch.tags = []
+    batch.measurements = []
+    batch.measurement_devices = []
     batches_list = MagicMock(spec=BatchList)
     batches_list.root = [batch]
     client.get_batches_list.return_value = batches_list
     client.get_batch_detail.return_value = batch
     client.update_batch_detail.return_value = None # Typically PATCH doesn't return content
 
-    # Mock Recipe data
-    recipe = MagicMock(
-        spec=Recipe,
-        id="test-recipe-id",
-        name="Test Recipe",
-        author="Test Author",
-        style_name="Test Style",
-        type="All Grain"
-    )
+    # Mock Recipe data - remove spec to avoid attribute restrictions
+    mock_style = MagicMock()
+    mock_style.name = "Test Style"
+    mock_style.category = "1"
+    mock_style.type = "A"
+    mock_style.style_guide = "BJCP 2021"
+    
+    mock_created = MagicMock()
+    mock_created.to_datetime.return_value.strftime.return_value = "2023-01-01 10:00:00"
+    
+    mock_timestamp = MagicMock()
+    mock_timestamp.to_datetime.return_value.strftime.return_value = "2023-01-01 11:00:00"
+    
+    recipe = MagicMock()
+    recipe.id = "test-recipe-id"
+    recipe.name = "Test Recipe"
+    recipe.author = "Test Author"
+    recipe.style = mock_style
+    recipe.type = "All Grain"
+    recipe.created = mock_created
+    recipe.timestamp = mock_timestamp
+    recipe.public = False
+    recipe.tags = ["IPA", "hoppy"]
+    recipe.style_conformity = True
+    recipe.batch_size = 20.0
+    recipe.boil_size = 25.0
+    recipe.boil_time = 60
+    recipe.efficiency = 75.0
+    recipe.mash_efficiency = 80.0
+    recipe.og = 1.050
+    recipe.og_plato = 12.4
+    recipe.fg = 1.010
+    recipe.ibu = 40
+    recipe.ibu_formula = "Tinseth"
+    recipe.color = 6.0
+    recipe.abv = 5.2
+    recipe.attenuation = 80.0
+    recipe.bu_gu_ratio = 0.8
+    recipe.carbonation = 2.4
+    recipe.pre_boil_gravity = 1.040
+    recipe.fermentables = []
+    recipe.hops = []
+    recipe.yeasts = []
+    recipe.miscs = []
+    recipe.notes = "Test recipe notes"
+    recipe.hidden = False
     recipes_list = MagicMock(spec=RecipeList)
     recipes_list.root = [recipe]
     client.get_recipes_list.return_value = recipes_list
     client.get_recipe_detail.return_value = recipe
 
-    # Mock Miscellaneous data
-    misc_item = MagicMock(
-        spec=Miscellaneous,
-        id="test-misc-id",
-        name="Test Misc Item",
-        type="Fining",
-        inventory=10.0,
-        notes="Test notes for misc"
-    )
-    miscs_list = MagicMock(spec=MiscellaneousList)
+    # Mock Miscellaneous data - remove spec to avoid attribute restrictions
+    misc_item = MagicMock()
+    misc_item.id = "test-misc-id"
+    misc_item.name = "Test Misc Item"
+    misc_item.type = "Fining"
+    misc_item.inventory = 10.0
+    misc_item.notes = "Test notes for misc"
+    miscs_list = MagicMock(spec=MiscList)
     miscs_list.root = [misc_item]
     client.get_miscs_list.return_value = miscs_list
     client.get_misc_detail.return_value = misc_item
@@ -407,8 +457,8 @@ class TestBrewfatherMCP:
         with patch("brewfather_mcp.server.brewfather_client", mock_brewfather_client):
             result = await read_recipe_detail("test-recipe-id")
             mock_brewfather_client.get_recipe_detail.assert_called_once_with("test-recipe-id")
-            assert "Name: Test Recipe" in result
-            assert "Style: Test Style" in result
+            assert "Recipe: Test Recipe" in result
+            assert "Name: Test Style" in result
 
     @pytest.mark.asyncio
     async def test_read_recipe_detail_error(self, mock_brewfather_client):

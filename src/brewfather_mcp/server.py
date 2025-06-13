@@ -6,13 +6,14 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import Message
 from mcp.types import TextContent
 
-from brewfather_mcp.api import BrewfatherInventoryClient
+from brewfather_mcp.api import BrewfatherClient, ListQueryParams
 from brewfather_mcp.inventory import (
     get_fermentables_summary,
     get_hops_summary,
     get_yeast_summary,
-    get_miscs_summary, # Assuming you will create this in inventory.py
+    get_miscs_summary,
 )
+from brewfather_mcp.formatter import format_recipe_details
 from typing import Optional
 from datetime import datetime
 
@@ -30,11 +31,11 @@ mcp = FastMCP("BrewfatherMCP")
 
 _ = load_dotenv()
 
-brewfather_client = BrewfatherInventoryClient()
+brewfather_client = BrewfatherClient()
 
 
 @mcp.prompt(
-    name="Possible beer styles based on inventory",
+    name="suggest_beer_styles",
     description="Ask to list all the possible BJCP styles based on the inventory.",
 )
 async def styles_based_inventory_prompt() -> list[Message]:
@@ -51,7 +52,7 @@ async def styles_based_inventory_prompt() -> list[Message]:
     role = "user"
     content = TextContent(
         type="text",
-        text="""What are the styles I can brew with my Brewfather inventary?
+        text="""What are the styles I can brew with my Brewfather inventory?
         Don't be limit to the items in the inventory, but try to use as much as possible from the inventory.
         Use styles from the latest BJCP.
         """,
@@ -60,9 +61,8 @@ async def styles_based_inventory_prompt() -> list[Message]:
     return [assistant, Message(content, role=role)]
 
 
-@mcp.resource(
-    uri="inventory://categories",
-    name="Inventory Categories",
+@mcp.tool(
+    name="list_inventory_categories",
     description="Lists the available inventory categories.",
 )
 async def inventory_categories() -> str:
@@ -74,15 +74,16 @@ async def inventory_categories() -> str:
 
     return content
 
-
-@mcp.resource(
-    uri="inventory://fermentables",
-    name="Fermentables",
+@mcp.tool(
+    name="list_fermentables",
     description="List all the fermentables (malts, adjuncts, grains, etc) inventory.",
 )
 async def read_fermentables() -> str:
     try:
-        data = await brewfather_client.get_fermentables_list()
+        params = ListQueryParams()
+        params.inventory_exists = True
+        params.limit = 50
+        data = await brewfather_client.get_fermentables_list(params)
 
         formatted_response: list[str] = []
         for item in data.root:
@@ -101,9 +102,8 @@ Identifier: {item.id}
         raise
 
 
-@mcp.resource(
-    uri="inventory://fermentables/{identifier}",
-    name="Fermentable detail",
+@mcp.tool(
+    name="get_fermentable_detail",
     description="Detailed information of the fermentable item.",
 )
 async def read_fermentable_detail(identifier: str) -> str:
@@ -150,12 +150,18 @@ ID: {item.id}
         raise
 
 
-@mcp.resource(uri="inventory://hops")
+@mcp.tool(
+    name="list_hops",
+    description="Lists all hops in inventory with their basic properties like alpha acids, quantity, and usage type.",
+)
 async def read_hops() -> str:
     logger.info("received request")
 
     try:
-        data = await brewfather_client.get_hops_list()
+        params = ListQueryParams()
+        params.inventory_exists = True
+        params.limit = 50
+        data = await brewfather_client.get_hops_list(params)
 
         formatted_response: list[str] = []
         for item in data.root:
@@ -175,7 +181,10 @@ Use: {item.use}
         raise
 
 
-@mcp.resource(uri="inventory://hops/{identifier}")
+@mcp.tool(
+    name="get_hop_detail",
+    description="Detailed information about a specific hop including origin, characteristics, oil composition, and storage details.",
+)
 async def read_hops_detail(identifier: str) -> str:
     logger.info("received request")
 
@@ -219,12 +228,18 @@ ID: {item.id}
         raise
 
 
-@mcp.resource(uri="inventory://yeasts")
+@mcp.tool(
+    name="list_yeasts",
+    description="Lists all yeasts in inventory with their basic properties like attenuation, quantity, and type.",
+)
 async def read_yeasts() -> str:
     logger.info("received request")
 
     try:
-        data = await brewfather_client.get_yeasts_list()
+        params = ListQueryParams()
+        params.inventory_exists = True
+        params.limit = 50
+        data = await brewfather_client.get_yeasts_list(params)
 
         formatted_response: list[str] = []
         for item in data.root:
@@ -243,7 +258,10 @@ Type: {item.type}
         raise
 
 
-@mcp.resource(uri="inventory://yeasts/{identifier}")
+@mcp.tool(
+    name="get_yeast_detail",
+    description="Detailed information about a specific yeast including manufacturer, specifications, temperature range, and storage details.",
+)
 async def read_yeasts_detail(identifier: str) -> str:
     logger.info("received request")
 
@@ -273,8 +291,8 @@ User Notes: {item.user_notes}
 Hidden: {item.hidden}
 Best Before Date: {item.best_before_date}
 Manufacturing Date: {item.manufacturing_date}
-Timestamp: {item.timestamp.seconds}
-Created: {item.created.seconds}
+Timestamp: {item.timestamp.seconds if item.timestamp else 'N/A'}
+Created: {item.created.seconds if item.created else 'N/A'}
 Version: {item.version}
 ID: {item.id}
 Rev: {item.rev}
@@ -286,11 +304,9 @@ Rev: {item.rev}
         raise
 
 
-@mcp.tool()
-@mcp.resource(
-    uri="inventory://overview",
-    name="Brewfather Inventory Overview",
-    description="Overview of all the inventory(malts, grains, hops and yeasts). Contains the same data as the PDF/Print export from the app.",
+@mcp.tool(
+    name="inventory_summary",
+    description="Creates a comprehensive overview of all inventory items including fermentables, hops, yeasts and miscellaneous items.",
 )
 async def inventory_summary() -> str:
     try:
@@ -333,15 +349,16 @@ async def inventory_summary() -> str:
 
 
 # Batch Endpoints
-@mcp.resource(
-    uri="brewfather://batches",
-    name="List Batches",
+@mcp.tool(
+    name="list_batches",
     description="Lists all brew batches.",
 )
 async def read_batches_list() -> str:
     logger.info("received request for batches list")
     try:
-        data = await brewfather_client.get_batches_list()
+        params = ListQueryParams()
+        params.limit = 50
+        data = await brewfather_client.get_batches_list(params)
         formatted_response: list[str] = []
         for item in data.root:
             brew_date_str = (
@@ -353,11 +370,11 @@ async def read_batches_list() -> str:
             )
             formatted = f"""ID: {item.id}
 Name: {item.name}
-Batch Number: {item.batch_number or 'N/A'}
+Batch Number: {item.batch_no or 'N/A'}
 Status: {item.status or 'N/A'}
 Brewer: {item.brewer or 'N/A'}
 Brew Date: {brew_date_str}
-Recipe Name: {item.recipe_name or 'N/A'}
+Recipe Name: {item.recipe.name}
 """
             formatted_response.append(formatted)
         return "---\n".join(formatted_response) if formatted_response else "No batches found."
@@ -366,9 +383,8 @@ Recipe Name: {item.recipe_name or 'N/A'}
         raise
 
 
-@mcp.resource(
-    uri="brewfather://batches/{batch_id}",
-    name="Batch Detail",
+@mcp.tool(
+    name="get_batch_detail",
     description="Get detailed information for a specific batch.",
 )
 async def read_batch_detail(batch_id: str) -> str:
@@ -382,17 +398,89 @@ async def read_batch_detail(batch_id: str) -> str:
             if item.brew_date
             else "N/A"
         )
-        # This is a simplified representation; a full Batch model would have many more fields.
-        # Refer to Brewfather API docs for all available fields if needed.
-        formatted_response = f"""ID: {item.id}
+        # Format dates
+        fermentation_start_str = (
+            item.fermentation_start_date.strftime("%Y-%m-%d %H:%M:%S")
+            if item.fermentation_start_date
+            else "N/A"
+        )
+        fermentation_end_str = (
+            item.fermentation_end_date.strftime("%Y-%m-%d %H:%M:%S")
+            if item.fermentation_end_date
+            else "N/A"
+        )
+        bottling_date_str = (
+            item.bottling_date.strftime("%Y-%m-%d %H:%M:%S")
+            if item.bottling_date
+            else "N/A"
+        )
+        
+        formatted_response = f"""Batch Details:
+==============
+ID: {item.id}
 Name: {item.name}
-Batch Number: {item.batch_number or 'N/A'}
+Batch Number: {item.batch_no or 'N/A'}
 Status: {item.status or 'N/A'}
 Brewer: {item.brewer or 'N/A'}
+Brewed: {'Yes' if item.brewed else 'No'}
+
+Recipe Information:
+------------------
+Recipe Name: {item.recipe.name if item.recipe else 'N/A'}
+Recipe ID: {item.recipe_id or 'N/A'}
+
+Schedule:
+---------
 Brew Date: {brew_date_str}
-Recipe Name: {item.recipe_name or 'N/A'}
+Fermentation Start: {fermentation_start_str}
+Fermentation End: {fermentation_end_str}
+Bottling Date: {bottling_date_str}
+
+Gravity & Alcohol:
+-----------------
+Original Gravity (OG): {item.og or 'N/A'}
+Final Gravity (FG): {item.fg or 'N/A'}
+ABV: {item.abv or 'N/A'}%
+
+Carbonation:
+-----------
+Type: {item.carbonation_type or 'N/A'}
+Level: {item.carbonation_level or 'N/A'} volumes
+
+Tags: {', '.join(item.tags) if item.tags else 'None'}
 """
-        # Add more fields as necessary from the item object
+        
+        if item.notes:
+            formatted_response += "\nNotes:\n"
+            for note in item.notes:
+                note_time = datetime.fromtimestamp(note.timestamp / 1000).strftime("%Y-%m-%d %H:%M:%S")
+                formatted_response += f"- [{note.type}] {note.note} ({note_time})\n"
+        
+        if item.measurements:
+            formatted_response += "\nMeasurements:\n-------------\n"
+            for measurement in item.measurements:
+                meas_time = measurement.time.strftime("%Y-%m-%d %H:%M:%S") if hasattr(measurement, 'time') and measurement.time else "N/A"
+                comment = f" ({measurement.comment})" if hasattr(measurement, 'comment') and measurement.comment else ""
+                formatted_response += f"- {measurement.type}: {measurement.value} {measurement.unit} [{meas_time}]{comment}\n"
+        
+        if item.measurement_devices:
+            formatted_response += "\nMeasurement Devices:\n------------------\n"
+            for device in item.measurement_devices:
+                device_name = device.get('name', 'Unknown Device')
+                device_type = device.get('type', 'N/A')
+                formatted_response += f"- {device_name} ({device_type})\n"
+        
+        # Add recipe details if available
+        if item.recipe:
+            formatted_response += "\n\n" + "="*50 + "\n"
+            formatted_response += "RECIPE DETAILS\n"
+            formatted_response += "="*50 + "\n\n"
+            formatted_response += format_recipe_details(item.recipe)
+        
+        # Add batch metadata
+        formatted_response += "\n\nBatch Metadata:\n--------------\n"
+        formatted_response += f"Batch ID: {item.id}\n"
+        
         return formatted_response
     except Exception:
         logger.exception(f"Error happened while fetching batch detail for {batch_id}")
@@ -400,7 +488,7 @@ Recipe Name: {item.recipe_name or 'N/A'}
 
 
 @mcp.tool(
-    name="Update Batch",
+    name="update_batch",
     description="Updates a batch's status or measured values.",
 )
 async def update_batch(
@@ -460,9 +548,8 @@ async def update_batch(
 
 
 # Recipe Endpoints
-@mcp.resource(
-    uri="brewfather://recipes",
-    name="List Recipes",
+@mcp.tool(
+    name="list_recipes",
     description="Lists all recipes.",
 )
 async def read_recipes_list() -> str:
@@ -474,7 +561,7 @@ async def read_recipes_list() -> str:
             formatted = f"""ID: {item.id}
 Name: {item.name}
 Author: {item.author or 'N/A'}
-Style: {item.style_name or 'N/A'}
+Style: {item.style.name if item.style else 'N/A'}
 Type: {item.type or 'N/A'}
 """
             formatted_response.append(formatted)
@@ -484,42 +571,33 @@ Type: {item.type or 'N/A'}
         raise
 
 
-@mcp.resource(
-    uri="brewfather://recipes/{recipe_id}",
-    name="Recipe Detail",
-    description="Get detailed information for a specific recipe.",
+@mcp.tool(
+    name="get_recipe_detail",
+    description="Get detailed information for a specific recipe including ingredients, process details and specifications.",
 )
 async def read_recipe_detail(recipe_id: str) -> str:
     logger.info(f"received request for recipe detail: {recipe_id}")
     try:
-        # Assuming Recipe model in types.py might be simple.
-        # For full details, the Recipe model would need to be comprehensive.
         item = await brewfather_client.get_recipe_detail(recipe_id)
-        formatted_response = f"""ID: {item.id}
-Name: {item.name}
-Author: {item.author or 'N/A'}
-Style: {item.style_name or 'N/A'}
-Type: {item.type or 'N/A'}
-"""
-        # Add more fields as necessary from the item object
-        # e.g., item.notes, item.data.mash.name, etc.
-        # This requires RecipeDetail model to be defined in types.py and used in api.py
-        return formatted_response
+        return format_recipe_details(item)
     except Exception:
         logger.exception(f"Error happened while fetching recipe detail for {recipe_id}")
         raise
 
 
 # Miscellaneous Inventory Endpoints
-@mcp.resource(
-    uri="inventory://miscs",
-    name="Miscellaneous Inventory",
+@mcp.tool(
+    name="list_misc_items",
     description="Lists all miscellaneous inventory items.",
 )
 async def read_miscs_list() -> str:
     logger.info("received request for miscellaneous inventory list")
     try:
-        data = await brewfather_client.get_miscs_list()
+        params = ListQueryParams()
+        params.inventory_exists = True
+        params.limit = 50
+        data = await brewfather_client.get_miscs_list(params)
+
         formatted_response: list[str] = []
         for item in data.root:
             formatted = f"""ID: {item.id}
@@ -535,9 +613,8 @@ Notes: {item.notes or 'N/A'}
         raise
 
 
-@mcp.resource(
-    uri="inventory://miscs/{item_id}",
-    name="Miscellaneous Item Detail",
+@mcp.tool(
+    name="get_misc_detail",
     description="Get detailed information for a specific miscellaneous inventory item.",
 )
 async def read_misc_detail(item_id: str) -> str:
@@ -561,7 +638,7 @@ Notes: {item.notes or 'N/A'}
 
 # Inventory Update Tools
 @mcp.tool(
-    name="Update Fermentable Inventory",
+    name="update_fermentable_inventory",
     description="Sets the inventory amount for a specific fermentable.",
 )
 async def update_fermentable_inventory_tool(item_id: str, inventory_amount: float) -> str:
@@ -575,7 +652,7 @@ async def update_fermentable_inventory_tool(item_id: str, inventory_amount: floa
 
 
 @mcp.tool(
-    name="Update Hop Inventory",
+    name="update_hop_inventory",
     description="Sets the inventory amount for a specific hop.",
 )
 async def update_hop_inventory_tool(item_id: str, inventory_amount: float) -> str:
@@ -589,7 +666,7 @@ async def update_hop_inventory_tool(item_id: str, inventory_amount: float) -> st
 
 
 @mcp.tool(
-    name="Update Miscellaneous Inventory",
+    name="update_misc_inventory",
     description="Sets the inventory amount for a specific miscellaneous item.",
 )
 async def update_misc_inventory_tool(item_id: str, inventory_amount: float) -> str:
@@ -603,7 +680,7 @@ async def update_misc_inventory_tool(item_id: str, inventory_amount: float) -> s
 
 
 @mcp.tool(
-    name="Update Yeast Inventory",
+    name="update_yeast_inventory",
     description="Sets the inventory amount for a specific yeast.",
 )
 async def update_yeast_inventory_tool(item_id: str, inventory_amount: float) -> str:

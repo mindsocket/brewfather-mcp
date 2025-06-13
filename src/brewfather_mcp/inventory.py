@@ -1,10 +1,8 @@
-from brewfather_mcp.api import BrewfatherInventoryClient
-from brewfather_mcp.types import HopDetail
+from brewfather_mcp.api import BrewfatherClient
 from brewfather_mcp.utils import AnyDictList, empty_if_null, get_in_batches
 
-
 async def get_fermentables_summary(
-    brewfather_client: BrewfatherInventoryClient,
+    brewfather_client: BrewfatherClient,
 ) -> AnyDictList:
     fermentables_data = await brewfather_client.get_fermentables_list()
 
@@ -34,7 +32,7 @@ async def get_fermentables_summary(
     return fermentables
 
 
-async def get_hops_summary(brewfather_client: BrewfatherInventoryClient) -> AnyDictList:
+async def get_hops_summary(brewfather_client: BrewfatherClient) -> AnyDictList:
     hops_data = await brewfather_client.get_hops_list()
     detail_results = await get_in_batches(
         3, brewfather_client.get_hop_detail, hops_data
@@ -57,7 +55,7 @@ async def get_hops_summary(brewfather_client: BrewfatherInventoryClient) -> AnyD
 
 
 async def get_yeast_summary(
-    brewfather_client: BrewfatherInventoryClient,
+    brewfather_client: BrewfatherClient,
 ) -> AnyDictList:
     yeasts_data = await brewfather_client.get_yeasts_list()
     detail_results = await get_in_batches(
@@ -78,3 +76,35 @@ async def get_yeast_summary(
         )
 
     return yeasts
+
+
+async def get_miscs_summary(
+    brewfather_client: BrewfatherClient,
+) -> AnyDictList:
+    """Get a summary of miscellaneous inventory items.
+
+    Args:
+        brewfather_client: The Brewfather API client instance.
+
+    Returns:
+        A list of dictionaries containing summarized miscellaneous item information.
+    """
+    miscs_data = await brewfather_client.get_miscs_list()
+    detail_results = await get_in_batches(
+        3, brewfather_client.get_misc_detail, miscs_data
+    )
+
+    miscs: AnyDictList = []
+    for m_data, misc_data in zip(
+        miscs_data.root, detail_results, strict=True
+    ):
+        miscs.append(
+            {
+                "Name": m_data.name,
+                "Type": m_data.type or "N/A",
+                "Notes": empty_if_null(misc_data.notes),
+                "Inventory Amount": f"{misc_data.inventory} units",
+            }
+        )
+
+    return miscs
