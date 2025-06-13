@@ -4,7 +4,12 @@ from brewfather_mcp.utils import AnyDictList, empty_if_null, get_in_batches
 async def get_fermentables_summary(
     brewfather_client: BrewfatherClient,
 ) -> AnyDictList:
-    fermentables_data = await brewfather_client.get_fermentables_list()
+    from brewfather_mcp.api import ListQueryParams
+    
+    params = ListQueryParams()
+    params.inventory_exists = True
+    params.limit = 50
+    fermentables_data = await brewfather_client.get_fermentables_list(params)
 
     detail_results = await get_in_batches(
         3,
@@ -16,14 +21,11 @@ async def get_fermentables_summary(
     for f_data, fermentable_data in zip(
         fermentables_data.root, detail_results, strict=True
     ):
-        fermentable_data = await brewfather_client.get_fermentable_detail(f_data.id)
-
         fermentables.append(
             {
                 "Name": f_data.name,
                 "Type": f_data.type,
                 "Yield": empty_if_null(fermentable_data.friability),
-                "Lot #": empty_if_null(fermentable_data.lot_number),
                 "Best Before Date": empty_if_null(fermentable_data.best_before_date),
                 "Inventory Amount": f"{fermentable_data.inventory} kg",
             }
@@ -33,7 +35,12 @@ async def get_fermentables_summary(
 
 
 async def get_hops_summary(brewfather_client: BrewfatherClient) -> AnyDictList:
-    hops_data = await brewfather_client.get_hops_list()
+    from brewfather_mcp.api import ListQueryParams
+    
+    params = ListQueryParams()
+    params.inventory_exists = True
+    params.limit = 50
+    hops_data = await brewfather_client.get_hops_list(params)
     detail_results = await get_in_batches(
         3, brewfather_client.get_hop_detail, hops_data
     )
@@ -45,7 +52,6 @@ async def get_hops_summary(brewfather_client: BrewfatherClient) -> AnyDictList:
                 "Name": h_data.name,
                 "Year": empty_if_null(hop_data.year),
                 "Alpha Acid": h_data.alpha,
-                "Lot #": empty_if_null(hop_data.lot_number),
                 "Best Before Date": empty_if_null(hop_data.best_before_date),
                 "Inventory Amount": f"{hop_data.inventory} grams",
             }
@@ -57,7 +63,12 @@ async def get_hops_summary(brewfather_client: BrewfatherClient) -> AnyDictList:
 async def get_yeast_summary(
     brewfather_client: BrewfatherClient,
 ) -> AnyDictList:
-    yeasts_data = await brewfather_client.get_yeasts_list()
+    from brewfather_mcp.api import ListQueryParams
+    
+    params = ListQueryParams()
+    params.inventory_exists = True
+    params.limit = 50
+    yeasts_data = await brewfather_client.get_yeasts_list(params)
     detail_results = await get_in_batches(
         3, brewfather_client.get_yeast_detail, yeasts_data
     )
@@ -69,7 +80,6 @@ async def get_yeast_summary(
                 "Name": y_data.name,
                 "Form": yeast_data.form,
                 "Attenuation": f"{y_data.attenuation}%",
-                "Lot #": empty_if_null(yeast_data.lot_number),
                 "Best Before Date": empty_if_null(yeast_data.best_before_date),
                 "Inventory Amount": f"{yeast_data.inventory} pkg",
             }
@@ -89,7 +99,12 @@ async def get_miscs_summary(
     Returns:
         A list of dictionaries containing summarized miscellaneous item information.
     """
-    miscs_data = await brewfather_client.get_miscs_list()
+    from brewfather_mcp.api import ListQueryParams
+    
+    params = ListQueryParams()
+    params.inventory_exists = True
+    params.limit = 50
+    miscs_data = await brewfather_client.get_miscs_list(params)
     detail_results = await get_in_batches(
         3, brewfather_client.get_misc_detail, miscs_data
     )

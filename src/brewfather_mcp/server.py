@@ -341,6 +341,7 @@ async def inventory_summary() -> str:
                 response += f"{k}: {v}\n"
             response += "\n"
 
+
         await ctx.report_progress(100, 100)
         return response
     except Exception:
