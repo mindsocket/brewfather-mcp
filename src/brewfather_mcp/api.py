@@ -83,7 +83,7 @@ class BrewfatherClient:
             if os.getenv("BREWFATHER_MCP_DEBUG"):
                 debug_dir = os.path.join(os.path.dirname(__file__), "..", "..", "debug")
                 os.makedirs(debug_dir, exist_ok=True)
-                debug_filename = url[len(BASE_URL) + 1:].replace("/", "_").replace(":", "_") + ".json"
+                debug_filename = url[len(BASE_URL) + 1:].split('?')[0].replace("/", "_").replace(":", "_") + ".json"
                 debug_path = os.path.join(debug_dir, debug_filename)
                 with open(debug_path, "w") as debug_file:
                     debug_file.write(response.text)

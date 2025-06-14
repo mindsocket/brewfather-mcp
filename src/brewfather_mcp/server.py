@@ -311,14 +311,37 @@ Rev: {item.rev}
 async def inventory_summary() -> str:
     try:
         ctx = mcp.get_context()
-        fermentables_coro = get_fermentables_summary(brewfather_client)
-        hops_coro = get_hops_summary(brewfather_client)
-        yeasts_coro = get_yeast_summary(brewfather_client)
+        
+        # Test each function individually with error handling
+        try:
+            fermentables = await get_fermentables_summary(brewfather_client)
+            logger.info(f"Fermentables summary: {len(fermentables)} items")
+        except Exception as e:
+            logger.exception("Error getting fermentables summary")
+            fermentables = []
 
-        result = await asyncio.gather(fermentables_coro, hops_coro, yeasts_coro)
+        try:
+            hops = await get_hops_summary(brewfather_client)
+            logger.info(f"Hops summary: {len(hops)} items")
+        except Exception as e:
+            logger.exception("Error getting hops summary")
+            hops = []
+
+        try:
+            yeasts = await get_yeast_summary(brewfather_client)
+            logger.info(f"Yeasts summary: {len(yeasts)} items")
+        except Exception as e:
+            logger.exception("Error getting yeasts summary")
+            yeasts = []
+
+        try:
+            miscs = await get_miscs_summary(brewfather_client)
+            logger.info(f"Miscs summary: {len(miscs)} items")
+        except Exception as e:
+            logger.exception("Error getting miscs summary")
+            miscs = []
+
         await ctx.info("API data gathered")
-
-        fermentables, hops, yeasts = result
 
         response = "Fermentables:\n\n"
         for fermentable in fermentables:
@@ -341,6 +364,13 @@ async def inventory_summary() -> str:
                 response += f"{k}: {v}\n"
             response += "\n"
 
+        response += "\n---\n"
+
+        response += "Miscellaneous Items:\n\n"
+        for misc in miscs:
+            for k, v in misc.items():
+                response += f"{k}: {v}\n"
+            response += "\n"
 
         await ctx.report_progress(100, 100)
         return response
@@ -427,8 +457,8 @@ Brewed: {'Yes' if item.brewed else 'No'}
 
 Recipe Information:
 ------------------
-Recipe Name: {item.recipe.name if item.recipe else 'N/A'}
-Recipe ID: {item.recipe_id or 'N/A'}
+Recipe Name: {getattr(item.recipe, 'name', 'N/A') if item.recipe else 'N/A'}
+Recipe ID: {getattr(item.recipe, 'id', getattr(item, 'recipe_id', 'N/A'))}
 
 Schedule:
 ---------

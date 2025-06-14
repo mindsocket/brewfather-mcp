@@ -13,12 +13,12 @@ class Timestamp(BaseModel):
         return datetime.fromtimestamp(self.seconds + (self.nanoseconds / 1e9))
     
 class VersionedModel(BaseModel):
-    # Version tracking fields found in API responses
-    version: str = Field(alias="_version")
-    created: Timestamp = Field(alias="_created")
-    timestamp: Timestamp = Field(alias="_timestamp")
-    timestamp_ms: int = Field(alias="_timestamp_ms")
-    rev: str = Field(alias="_rev")
+    # Version tracking fields found in API responses (but not always)
+    version: str | None = Field(alias="_version", default=None)
+    created: Timestamp | None = Field(alias="_created", default=None)
+    timestamp: Timestamp | None = Field(alias="_timestamp", default=None)
+    timestamp_ms: int | None = Field(alias="_timestamp_ms", default=None)
+    rev: str | None = Field(alias="_rev", default=None)
 
 class CarbonationType(StrEnum):
     SUGAR = "Sugar"
@@ -43,6 +43,7 @@ class FermentationStepType(StrEnum):
     PRIMARY = "Primary"
     SECONDARY = "Secondary"
     CONDITIONING = "Conditioning"
+    COLD_CRASH = "Cold Crash"
 
 
 class MashStep(BaseModel):

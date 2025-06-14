@@ -1,11 +1,14 @@
 import json
 import pytest
 import httpx
+from pathlib import Path
 from respx import MockRouter
+from typing import List, Tuple
 
 from brewfather_mcp.api import BrewfatherClient, BASE_URL
 from brewfather_mcp.types import (
     Batch,
+    BatchDetail,
     BatchList,
     FermentableDetail,
     FermentableList,
@@ -14,6 +17,7 @@ from brewfather_mcp.types import (
     Misc,
     MiscList,
     Recipe,
+    RecipeDetail,
     RecipeList,
     YeastDetail,
     YeastList,
@@ -26,6 +30,33 @@ def client(monkeypatch) -> BrewfatherClient:
     monkeypatch.setenv("BREWFATHER_API_USER_ID", "testuser")
     monkeypatch.setenv("BREWFATHER_API_KEY", "testkey")
     return BrewfatherClient()
+
+
+def load_debug_json(filename: str) -> dict | list:
+    """Load JSON data from debug directory."""
+    debug_path = Path(__file__).parent.parent / "debug" / filename
+    with open(debug_path, "r") as f:
+        return json.load(f)
+
+
+def get_debug_files_by_type(file_type: str) -> List[Tuple[str, str]]:
+    """Get all debug JSON files of a specific type.
+    
+    Returns:
+        List of tuples: (filename, test_id)
+    """
+    debug_dir = Path(__file__).parent.parent / "debug"
+    files = []
+    
+    for json_file in debug_dir.glob(f"{file_type}*.json"):
+        # Skip files with query parameters in the name
+        if "?" in json_file.name:
+            continue
+        # Create a readable test ID from filename
+        test_id = json_file.stem.replace(file_type + "_", "").replace(file_type, "list")
+        files.append((json_file.name, test_id))
+    
+    return files
 
 
 version_mock = {
@@ -122,6 +153,30 @@ class TestFermentables:
         assert request.method == "PATCH"
         assert json.loads(request.content) == {"inventory": inventory_amount}
 
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("inventory_fermentables"))
+    @pytest.mark.asyncio
+    async def test_fermentables_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
+        """Test that all fermentables debug data validates correctly."""
+        mock_data = load_debug_json(filename)
+        
+        if filename == "inventory_fermentables.json":
+            # Test list endpoint
+            respx_mock.get(f"{BASE_URL}/inventory/fermentables").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_fermentables_list()
+            assert isinstance(result, FermentableList)
+            assert len(result.root) == len(mock_data)
+        else:
+            # Test detail endpoint - extract ID from filename
+            item_id = filename.replace("inventory_fermentables_", "").replace(".json", "")
+            respx_mock.get(f"{BASE_URL}/inventory/fermentables/{item_id}").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_fermentable_detail(item_id)
+            assert isinstance(result, FermentableDetail)
+            assert result.id == item_id
+
 
 class TestHops:
     @pytest.mark.asyncio
@@ -178,6 +233,30 @@ class TestHops:
         assert len(respx_mock.calls) == 1
         request = respx_mock.calls.last.request
         assert json.loads(request.content) == {"inventory": inventory_amount}
+
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("inventory_hops"))
+    @pytest.mark.asyncio
+    async def test_hops_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
+        """Test that all hops debug data validates correctly."""
+        mock_data = load_debug_json(filename)
+        
+        if filename == "inventory_hops.json":
+            # Test list endpoint
+            respx_mock.get(f"{BASE_URL}/inventory/hops").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_hops_list()
+            assert isinstance(result, HopList)
+            assert len(result.root) == len(mock_data)
+        else:
+            # Test detail endpoint - extract ID from filename
+            item_id = filename.replace("inventory_hops_", "").replace(".json", "")
+            respx_mock.get(f"{BASE_URL}/inventory/hops/{item_id}").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_hop_detail(item_id)
+            assert isinstance(result, HopDetail)
+            assert result.id == item_id
 
 
 class TestYeasts:
@@ -236,6 +315,30 @@ class TestYeasts:
         request = respx_mock.calls.last.request
         assert json.loads(request.content) == {"inventory": inventory_amount}
 
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("inventory_yeasts"))
+    @pytest.mark.asyncio
+    async def test_yeasts_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
+        """Test that all yeasts debug data validates correctly."""
+        mock_data = load_debug_json(filename)
+        
+        if filename == "inventory_yeasts.json":
+            # Test list endpoint
+            respx_mock.get(f"{BASE_URL}/inventory/yeasts").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_yeasts_list()
+            assert isinstance(result, YeastList)
+            assert len(result.root) == len(mock_data)
+        else:
+            # Test detail endpoint - extract ID from filename
+            item_id = filename.replace("inventory_yeasts_", "").replace(".json", "")
+            respx_mock.get(f"{BASE_URL}/inventory/yeasts/{item_id}").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_yeast_detail(item_id)
+            assert isinstance(result, YeastDetail)
+            assert result.id == item_id
+
 
 class TestBatches:
     @pytest.mark.asyncio
@@ -247,7 +350,7 @@ class TestBatches:
                 "_id": "batch1",
                 "name": "Test Batch",
                 "batchNo": 1,
-                "recipe": {"name": "Test Recipe"},
+                "recipe": {"name": "Test Recipe", "_id": "recipe1"},
             }
         ]
         respx_mock.get(f"{BASE_URL}/batches").mock(
@@ -279,7 +382,7 @@ class TestBatches:
             "_id": batch_id,
             "name": "Detailed Batch",
             "status": "Fermenting",
-            "recipe": {"name": "Detailed Recipe"},
+            "recipe": {"name": "Detailed Recipe", "_id": "recipe2"},
             "batchNo": 2,
         } | version_mock
         respx_mock.get(f"{BASE_URL}/batches/{batch_id}").mock(
@@ -305,6 +408,30 @@ class TestBatches:
         assert request.method == "PATCH"
         assert str(request.url) == f"{BASE_URL}/batches/{batch_id}"
         assert json.loads(request.content) == payload
+
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("batches"))
+    @pytest.mark.asyncio
+    async def test_batches_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
+        """Test that all batches debug data validates correctly."""
+        mock_data = load_debug_json(filename)
+        
+        if filename == "batches.json":
+            # Test list endpoint
+            respx_mock.get(f"{BASE_URL}/batches").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_batches_list()
+            assert isinstance(result, BatchList)
+            assert len(result.root) == len(mock_data)
+        else:
+            # Test detail endpoint - extract ID from filename
+            batch_id = filename.replace("batches_", "").replace(".json", "")
+            respx_mock.get(f"{BASE_URL}/batches/{batch_id}").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_batch_detail(batch_id)
+            assert isinstance(result, BatchDetail)
+            assert result.id == batch_id
 
 
 class TestRecipes:
@@ -338,6 +465,30 @@ class TestRecipes:
         assert isinstance(result, Recipe)
         assert result.id == recipe_id
         assert result.author == "Brewer Joe"
+
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("recipes"))
+    @pytest.mark.asyncio
+    async def test_recipes_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
+        """Test that all recipes debug data validates correctly."""
+        mock_data = load_debug_json(filename)
+        
+        if filename == "recipes.json":
+            # Test list endpoint
+            respx_mock.get(f"{BASE_URL}/recipes").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_recipes_list()
+            assert isinstance(result, RecipeList)
+            assert len(result.root) == len(mock_data)
+        else:
+            # Test detail endpoint - extract ID from filename
+            recipe_id = filename.replace("recipes_", "").replace(".json", "")
+            respx_mock.get(f"{BASE_URL}/recipes/{recipe_id}").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_recipe_detail(recipe_id)
+            assert isinstance(result, RecipeDetail)
+            assert result.id == recipe_id
 
 
 class TestMiscellaneous:
@@ -387,3 +538,27 @@ class TestMiscellaneous:
         assert len(respx_mock.calls) == 1
         request = respx_mock.calls.last.request
         assert json.loads(request.content) == {"inventory": inventory_amount}
+
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("inventory_miscs"))
+    @pytest.mark.asyncio
+    async def test_miscs_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
+        """Test that all misc debug data validates correctly."""
+        mock_data = load_debug_json(filename)
+        
+        if filename == "inventory_miscs.json":
+            # Test list endpoint
+            respx_mock.get(f"{BASE_URL}/inventory/miscs").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_miscs_list()
+            assert isinstance(result, MiscList)
+            assert len(result.root) == len(mock_data)
+        else:
+            # Test detail endpoint - extract ID from filename
+            item_id = filename.replace("inventory_miscs_", "").replace(".json", "")
+            respx_mock.get(f"{BASE_URL}/inventory/miscs/{item_id}").mock(
+                return_value=httpx.Response(200, json=mock_data)
+            )
+            result = await client.get_misc_detail(item_id)
+            assert isinstance(result, Misc)
+            assert result.id == item_id

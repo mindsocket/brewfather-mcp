@@ -92,8 +92,8 @@ class RecipeHop(HopBase):
     """Hop addition in a recipe context"""
     # Recipe-specific required fields
     amount: float
-    time: int
-    use: HopUse
+    time: int | None = None
+    use: HopUse | None = None
     ibu: float = 0
     
     # Common recipe fields

@@ -37,12 +37,10 @@ class RecipeStyleDetail(RecipeStyle):
     ingredients: str | None = None
     examples: str | None = None
 
-class RecipeName(BaseModel):
-    name: str
-
-class Recipe(RecipeName):
+class Recipe(BaseModel):
     """Base recipe model with fields from list view"""
     id: str = Field(alias="_id")
+    name: str
     author: str | None = None
     type: RecipeType | None = Field(alias="type", default=None)
     equipment: EquipmentProfile | None = None

@@ -20,7 +20,7 @@ class YeastBase(BaseModel):
     """
     name: str
     type: str  # "Ale", "Lager", "Wheat", etc.
-    attenuation: int  # Percentage
+    attenuation: float | None = None # Percentage (may be 0-100 or 0-1?)
 
     model_config = {
         "populate_by_name": True,
@@ -94,8 +94,10 @@ class YeastDetail(Yeast, VersionedModel):
 
     @field_validator("manufacturing_date", "best_before_date", mode="before")
     @classmethod
-    def convert_timestamp_to_isodate(cls, value: int | None):
-        return utils.convert_timestamp_to_iso8601(value)
+    def convert_timestamp_to_isodate(cls, value: int | str | None):
+        if isinstance(value, int):
+            return utils.convert_timestamp_to_iso8601(value)
+        return value
 
 
 class RecipeYeast(YeastBase):
@@ -129,7 +131,7 @@ class RecipeYeast(YeastBase):
     user_notes: str | None = Field(alias="userNotes", default=None)
     
     # Starter information (recipe-specific)
-    starter: bool = Field(default=False)
+    starter: bool | None = Field(default=None)
     starter_size: float | None = Field(alias="starterSize", default=None)
     starter_gram_extract: float | None = Field(alias="starterGramExtract", default=None)
     
@@ -146,6 +148,13 @@ class RecipeYeast(YeastBase):
     model_config = {
         "populate_by_name": True,
     }
+
+    @field_validator("manufacturing_date", "best_before_date", mode="before")
+    @classmethod
+    def convert_timestamp_to_isodate(cls, value: int | str | None):
+        if isinstance(value, int):
+            return utils.convert_timestamp_to_iso8601(value)
+        return value
 
 
 class BatchYeast(RecipeYeast):

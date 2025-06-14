@@ -13,8 +13,12 @@ def format_recipe_details(recipe: RecipeDetail, section_title: str = "RECIPE DET
         Formatted string with complete recipe information
     """
     # Basic recipe info
-    created_date = recipe.created.to_datetime().strftime("%Y-%m-%d %H:%M:%S") if recipe.created else "N/A"
-    last_modified = recipe.timestamp.to_datetime().strftime("%Y-%m-%d %H:%M:%S") if recipe.timestamp else "N/A"
+    created_date = "N/A"
+    last_modified = "N/A"
+    if recipe.created:
+        created_date = recipe.created.to_datetime().strftime("%Y-%m-%d %H:%M:%S")
+    if recipe.timestamp:
+        last_modified = recipe.timestamp.to_datetime().strftime("%Y-%m-%d %H:%M:%S")
     
     formatted_response = f"""Recipe: {recipe.name}
 Author: {recipe.author or 'N/A'}
@@ -27,43 +31,42 @@ Tags: {', '.join(recipe.tags) if recipe.tags else 'None'}
 Style Information:
 -----------------
 Name: {recipe.style.name if recipe.style else 'N/A'}
-Category: {getattr(recipe.style, 'category', 'N/A')}
-Type: {getattr(recipe.style, 'type', 'N/A')}
-Style Guide: {getattr(recipe.style, 'style_guide', 'N/A')}
+Category: {recipe.style.category if recipe.style and hasattr(recipe.style, 'category') else 'N/A'}
+Type: {recipe.style.type if recipe.style and hasattr(recipe.style, 'type') else 'N/A'}
+Style Guide: {recipe.style.style_guide if recipe.style and hasattr(recipe.style, 'style_guide') else 'N/A'}
 Conformity: {'Yes' if recipe.style_conformity else 'No'}
 
 Specifications:
 --------------
-Batch Size: {recipe.batch_size}L
-Boil Size: {recipe.boil_size}L
-Boil Time: {recipe.boil_time} minutes
-Brewhouse Efficiency: {recipe.efficiency}%
-Mash Efficiency: {recipe.mash_efficiency}%
-Original Gravity: {recipe.og} ({recipe.og_plato or 'N/A'}°P)
-Final Gravity: {recipe.fg}
-IBU: {recipe.ibu} (Formula: {recipe.ibu_formula})
-Color: {recipe.color} SRM
-ABV: {recipe.abv}%
-Attenuation: {recipe.attenuation}%
-BU:GU Ratio: {recipe.bu_gu_ratio}
+Batch Size: {recipe.batch_size or 'N/A'}L
+Boil Size: {recipe.boil_size or 'N/A'}L
+Boil Time: {recipe.boil_time or 'N/A'} minutes
+Brewhouse Efficiency: {recipe.efficiency or 'N/A'}%
+Mash Efficiency: {recipe.mash_efficiency or 'N/A'}%
+Original Gravity: {recipe.og or 'N/A'} ({recipe.og_plato or 'N/A'}°P)
+Final Gravity: {recipe.fg or 'N/A'}
+IBU: {recipe.ibu or 'N/A'} (Formula: {recipe.ibu_formula or 'N/A'})
+Color: {recipe.color or 'N/A'} SRM
+ABV: {recipe.abv or 'N/A'}%
+Attenuation: {recipe.attenuation or 'N/A'}%
+BU:GU Ratio: {recipe.bu_gu_ratio or 'N/A'}
 Carbonation: {recipe.carbonation or 'N/A'} volumes
 Pre-Boil Gravity: {recipe.pre_boil_gravity or 'N/A'}
-Post-Boil Gravity: {recipe.post_boil_gravity}
+Post-Boil Gravity: {recipe.post_boil_gravity or 'N/A'}
 
 Process Details:
 ---------------
-FG Formula: {getattr(recipe, 'fg_formula', 'N/A')}
-Carbonation Type: {getattr(recipe, 'carbonation_type', 'N/A')}
-Primary Temp: {getattr(recipe, 'primary_temp', 'N/A')}°C
-First Wort Gravity: {getattr(recipe, 'first_wort_gravity', 'N/A')}
-Diastatic Power: {getattr(recipe, 'diasmatic_power', 'N/A')}
-Hopstand Temp: {getattr(recipe, 'avg_weighted_hopstand_temp', 'N/A')}°C
-Dry Hop Rate: {getattr(recipe, 'sum_dry_hop_per_liter', 'N/A')}g/L
+FG Formula: {recipe.fg_formula or 'N/A'}
+Primary Temp: {recipe.primary_temp or 'N/A'}°C
+First Wort Gravity: {recipe.first_wort_gravity or 'N/A'}
+Diastatic Power: {recipe.diasmatic_power or 'N/A'}
+Hopstand Temp: {recipe.avg_weighted_hopstand_temp or 'N/A'}°C
+Dry Hop Rate: {recipe.sum_dry_hop_per_liter or 'N/A'}g/L
 
 Ingredient Totals:
 -----------------
-Total Fermentables: {recipe.fermentables_total_amount}kg
-Total Hops: {recipe.hops_total_amount}g
+Total Fermentables: {recipe.fermentables_total_amount or 'N/A'}kg
+Total Hops: {recipe.hops_total_amount or 'N/A'}g
 
 Equipment Profile:
 ----------------
@@ -73,16 +76,16 @@ Fermentables:
 ------------
 """
     for ferm in recipe.fermentables:
-        formatted_response += f"{ferm.name}: {ferm.amount}kg ({ferm.percentage}%) - {ferm.type}\n"
+        formatted_response += f"{ferm.name}: {ferm.amount}kg ({ferm.percentage or 'N/A'}%) - {ferm.type}\n"
 
     formatted_response += "\nHops Schedule:\n-------------\n"
     for hop in recipe.hops:
-        formatted_response += f"{hop.name}: {hop.amount}g ({hop.alpha}% AA) - {hop.use} for {hop.time} min @ {hop.temp or 100}°C\n"
+        formatted_response += f"{hop.name}: {hop.amount}g ({hop.alpha}% AA) - {hop.use} for {hop.time or 'N/A'} min @ {hop.temp or 100}°C\n"
 
     formatted_response += "\nYeast:\n------\n"
     for yeast in recipe.yeasts:
-        formatted_response += f"{yeast.name} ({yeast.laboratory}) - {yeast.amount} {yeast.unit or 'pkg'}\n"
-        formatted_response += f"Form: {yeast.form}, Attenuation: {yeast.attenuation}%\n"
+        formatted_response += f"{yeast.name} ({yeast.laboratory or 'N/A'}) - {yeast.amount} {yeast.unit or 'pkg'}\n"
+        formatted_response += f"Form: {yeast.form or 'N/A'}, Attenuation: {yeast.attenuation}%\n"
 
     if recipe.miscs:
         formatted_response += "\nMiscellaneous:\n-------------\n"
@@ -93,7 +96,7 @@ Fermentables:
             formatted_response += "\n"
 
     # Add boil steps if available
-    if hasattr(recipe, 'boil_steps') and recipe.boil_steps:
+    if recipe.boil_steps:
         formatted_response += "\nBoil Schedule:\n-------------\n"
         for step in recipe.boil_steps:
             formatted_response += f"@ {step.time} min: {step.name}\n"
@@ -101,26 +104,17 @@ Fermentables:
     # Add mash profile if available
     if recipe.mash:
         formatted_response += "\nMash Profile:\n------------\n"
-        if hasattr(recipe.mash, 'steps'):
-            # It's a MashSchedule object
-            formatted_response += f"Name: {recipe.mash.name}\n"
-            for i, step in enumerate(recipe.mash.steps, 1):
-                formatted_response += f"Step {i}: {step.type} - {step.step_temp}°C for {step.step_time} min"
-                if step.ramp_time:
-                    formatted_response += f" (ramp: {step.ramp_time} min)"
-                formatted_response += "\n"
-        elif isinstance(recipe.mash, dict) and 'steps' in recipe.mash:
-            # It's a dict (backward compatibility)
-            for i, step in enumerate(recipe.mash['steps'], 1):
-                temp = step.get('stepTemp', 'N/A')
-                time = step.get('stepTime', 'N/A')
-                step_type = step.get('type', 'Infusion')
-                formatted_response += f"Step {i}: {step_type} - {temp}°C for {time} min\n"
+        formatted_response += f"Name: {recipe.mash.name or 'N/A'}\n"
+        for i, step in enumerate(recipe.mash.steps, 1):
+            formatted_response += f"Step {i}: {step.type} - {step.step_temp}°C for {step.step_time} min"
+            if step.ramp_time:
+                formatted_response += f" (ramp: {step.ramp_time} min)"
+            formatted_response += "\n"
     
     if recipe.water:
         formatted_response += "\nWater Profile:\n-------------\n"
-        formatted_response += f"Source Water: {recipe.water.source.name}\n"
-        formatted_response += f"Mash pH: {recipe.water.mash_ph}\n"
+        formatted_response += f"Source Water: {recipe.water.source.name if recipe.water.source else 'N/A'}\n"
+        formatted_response += f"Mash pH: {recipe.water.mash_ph or 'N/A'}\n"
         if recipe.water.acid_ph_adjustment:
             formatted_response += f"Acid pH Adjustment: {recipe.water.acid_ph_adjustment}\n"
         
@@ -146,7 +140,7 @@ Fermentables:
 
     if recipe.fermentation:
         formatted_response += "\nFermentation Schedule:\n--------------------\n"
-        formatted_response += f"Profile: {recipe.fermentation.name}\n"
+        formatted_response += f"Profile: {recipe.fermentation.name or 'N/A'}\n"
         for i, step in enumerate(recipe.fermentation.steps, 1):
             formatted_response += f"Step {i}: {step.type} - {step.step_temp}°C for {step.step_time} days"
             if hasattr(step, 'actual_time') and step.actual_time:
@@ -159,20 +153,20 @@ Fermentables:
         formatted_response += f"\nNotes:\n------\n{recipe.notes}\n"
         
     # Add efficiency calculations if available
-    if hasattr(recipe, 'rb_ratio') and recipe.rb_ratio:
+    if recipe.rb_ratio:
         formatted_response += f"\nAdvanced Calculations:\n---------------------\n"
         formatted_response += f"RB Ratio: {recipe.rb_ratio}\n"
-        if hasattr(recipe, 'total_gravity'):
+        if recipe.total_gravity:
             formatted_response += f"Total Gravity: {recipe.total_gravity}\n"
-        if hasattr(recipe, 'extra_gravity'):
+        if recipe.extra_gravity:
             formatted_response += f"Extra Gravity: {recipe.extra_gravity}\n"
     
     # Add version and metadata
     formatted_response += f"\nMetadata:\n---------\n"
     formatted_response += f"Recipe ID: {recipe.id}\n"
-    formatted_response += f"Version: {recipe.version}\n"
-    formatted_response += f"Revision: {recipe.rev}\n"
-    if hasattr(recipe, 'search_tags') and recipe.search_tags:
+    formatted_response += f"Version: {recipe.version or 'N/A'}\n"
+    formatted_response += f"Revision: {recipe.rev or 'N/A'}\n"
+    if recipe.search_tags:
         formatted_response += f"Search Tags: {', '.join(recipe.search_tags)}\n"
     
     return formatted_response

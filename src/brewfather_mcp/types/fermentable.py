@@ -12,7 +12,7 @@ class FermentableBase(InventoryItem):
     """
     name: str
     type: str
-    supplier: str
+    supplier: str | None = None
     attenuation: float | None = None
 
     model_config = {
@@ -20,9 +20,9 @@ class FermentableBase(InventoryItem):
     }
 
 class FermentableDetail(FermentableBase, VersionedModel):
-    color: float
-    potential: float
-    potential_percentage: float = Field(alias="potentialPercentage")
+    color: float | None = None
+    potential: float | None = None
+    potential_percentage: float | None = Field(alias="potentialPercentage", default=None)
 
     grain_category: str | None = Field(alias="grainCategory", default=None)
     origin: str | None = None

@@ -1,12 +1,12 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, RootModel
+from pydantic import AliasPath, BaseModel, Field, RootModel
 from enum import StrEnum
 
 from .fermentable import BatchFermentable
 from .hop import BatchHop
 from .misc import BatchMisc
-from .recipe import RecipeName, RecipeDetail
+from .recipe import RecipeDetail
 from .yeast import BatchYeast
 
 from .base import BoilStep, CarbonationType, Timestamp, VersionedModel
@@ -23,7 +23,7 @@ class BatchMeasurement(BaseModel):
 class BatchNote(BaseModel):
     """Note entry in a batch"""
     note: str
-    type: str
+    type: str | None = None
     timestamp: int
 
 class BatchStatus(StrEnum):
@@ -41,7 +41,8 @@ class Batch(BaseModel):
     brew_date: Optional[int] = Field(alias="brewDate", default=None)
     status: BatchStatus = Field(default=BatchStatus.PLANNING)
     brewer: Optional[str] = None
-    recipe: RecipeName
+    # Recipe is an object containing a name.
+    recipe_name: str = Field(validation_alias=AliasPath("recipe", "name"))
 
 class BatchDetail(Batch, VersionedModel):
     """Represents a batch with fields from Brewfather API."""
@@ -59,7 +60,7 @@ class BatchDetail(Batch, VersionedModel):
     carbonation_level: Optional[float] = Field(alias="carbonationLevel", default=None)
     fermentation_start_date: Optional[datetime] = Field(alias="fermentationStartDate", default=None)
     fermentation_end_date: Optional[datetime] = Field(alias="fermentationEndDate", default=None)
-    recipe: RecipeDetail | RecipeName
+    recipe: RecipeDetail
     
     # Process events and measurements
     events: List[Dict[str, Any]] = Field(default_factory=list)
