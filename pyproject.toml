@@ -10,6 +10,8 @@ dependencies = [
     "pydantic>=2.10.6",
     "pytest-cov>=6.0.0",
     "python-dotenv>=1.0.1",
+    "starlette>=0.40.0",
+    "uvicorn>=0.30.0",
     "uv>=0.7.13",
 ]
 

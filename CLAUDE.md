@@ -20,6 +20,9 @@ In order to make robust code, we need to "test in production" by making calls to
 
 ### MCP Development
 
+The server supports two transport modes:
+
+#### stdio (Local Development)
 When using claude code, use mcpt commands to test changes to this server. The inbuilt mcp tools don't get reloaded after changes.
 
 - `uv run --with mcp[cli] mcp install` - Install MCP CLI tools
@@ -30,6 +33,47 @@ When using claude code, use mcpt commands to test changes to this server. The in
 - `mcpt call get_batch_detail --params '{ "batch_id": "C3hZC7P4zeNH6QJsc7FXizVGN8dkQe" }'  uv run --with 'mcp[cli]' mcp run src/main.py` - Call a tool with params
 - `BREWFATHER_MCP_DEBUG=1 mcpt call get_batch_detail --params '{ "batch_id": "C3hZC7P4zeNH6QJsc7FXizVGN8dkQe" }' uv run --with 'mcp[cli]' mcp run src/main.py` - Call tool with debug mode to save API calls to file
 - `alias -g BF="uv run --with 'mcp[cli]' mcp run src/main.py"` - Alias to use with mcpt, eg `mcpt tools BF`
+
+#### HTTP/SSE (Web/Cloud Deployment)
+For testing the HTTP server or deployment to cloud platforms:
+
+**Start HTTP Server:**
+- `PYTHONPATH=src python src/http_runner.py --port 8000` - Start HTTP/SSE server on port 8000
+- `PYTHONPATH=src python src/http_runner.py --host 0.0.0.0 --port 8000 --log-level DEBUG` - Start with custom settings
+
+**Testing HTTP Server with mcpt:**
+- `mcpt tools http://localhost:8000/sse` - List available tools via HTTP
+- `mcpt call list_inventory_categories http://localhost:8000/sse` - Call a simple tool
+- `mcpt call inventory_summary http://localhost:8000/sse` - Call a complex tool
+- `mcpt call get_fermentable_detail --params '{"identifier": "default-08f456e"}' http://localhost:8000/sse` - Call tool with parameters
+- `mcpt call update_fermentable_inventory --params '{"item_id": "default-08f456e", "inventory_amount": 5.0}' http://localhost:8000/sse` - Call update tool
+
+**Health Check:**
+- `curl http://localhost:8000/sse` - Check if SSE endpoint is responding (will hang waiting for events, which is expected)
+
+### Cloud Deployment
+
+The HTTP server can be deployed to any cloud platform that supports Python web applications:
+
+**Railway:**
+1. Connect GitHub repo to Railway
+2. Set environment variables: `BREWFATHER_API_USER_ID`, `BREWFATHER_API_KEY`
+3. Set start command: `PYTHONPATH=src python src/http_runner.py --port $PORT`
+
+**Fly.io:**
+1. `fly launch` to create app
+2. Set secrets: `fly secrets set BREWFATHER_API_USER_ID=xxx BREWFATHER_API_KEY=yyy`
+3. Configure start command in fly.toml
+
+**Render:**
+1. Connect repo to Render
+2. Set build command: `uv sync`
+3. Set start command: `PYTHONPATH=src python src/http_runner.py --port $PORT`
+4. Set environment variables in Render dashboard
+
+**Access deployed server:**
+- MCP endpoint: `https://your-app.platform.com/sse`
+- Test with: `mcpt tools https://your-app.platform.com/sse`
 
 
 ## Architecture

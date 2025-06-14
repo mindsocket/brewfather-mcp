@@ -405,7 +405,7 @@ Batch Number: {item.batch_no or 'N/A'}
 Status: {item.status or 'N/A'}
 Brewer: {item.brewer or 'N/A'}
 Brew Date: {brew_date_str}
-Recipe Name: {item.recipe.name}
+Recipe Name: {item.recipe_name}
 """
             formatted_response.append(formatted)
         return "---\n".join(formatted_response) if formatted_response else "No batches found."
