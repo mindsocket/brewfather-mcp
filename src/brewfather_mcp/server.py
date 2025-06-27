@@ -481,6 +481,137 @@ Level: {item.carbonation_level or (item.recipe.carbonation if item.recipe else N
 Tags: {', '.join(item.tags) if item.tags else 'None'}
 """
         
+        # Add brew day measurements if any exist
+        brew_measurements = []
+        if item.measured_mash_ph:
+            # Mash pH target is typically from water profile
+            target_ph = getattr(item.recipe, 'mash', {}).get('ph') if item.recipe else None
+            if target_ph:
+                delta = item.measured_mash_ph - target_ph
+                brew_measurements.append(f"Mash pH: {item.measured_mash_ph} ({delta:+.2f})")
+            else:
+                brew_measurements.append(f"Mash pH: {item.measured_mash_ph}")
+        
+        if item.measured_first_wort_gravity:
+            brew_measurements.append(f"First Wort Gravity: {item.measured_first_wort_gravity}")
+        
+        if item.measured_pre_boil_gravity:
+            # Compare to recipe pre-boil gravity
+            target_pre_boil = getattr(item.recipe, 'pre_boil_gravity', None) if item.recipe else None
+            if target_pre_boil:
+                delta = item.measured_pre_boil_gravity - target_pre_boil
+                brew_measurements.append(f"Pre-Boil Gravity: {item.measured_pre_boil_gravity} ({delta:+.3f})")
+            else:
+                brew_measurements.append(f"Pre-Boil Gravity: {item.measured_pre_boil_gravity}")
+        
+        if item.measured_boil_size:
+            # Compare to recipe boil size
+            target_boil_size = getattr(item.recipe, 'boil_size', None) if item.recipe else None
+            if target_boil_size:
+                delta = item.measured_boil_size - target_boil_size
+                brew_measurements.append(f"Boil Size: {item.measured_boil_size}L ({delta:+.2f}L)")
+            else:
+                brew_measurements.append(f"Boil Size: {item.measured_boil_size}L")
+        
+        if item.measured_post_boil_gravity:
+            # Compare to recipe post-boil gravity
+            target_post_boil = getattr(item.recipe, 'post_boil_gravity', None) if item.recipe else None
+            if target_post_boil:
+                delta = item.measured_post_boil_gravity - target_post_boil
+                brew_measurements.append(f"Post-Boil Gravity: {item.measured_post_boil_gravity} ({delta:+.3f})")
+            else:
+                brew_measurements.append(f"Post-Boil Gravity: {item.measured_post_boil_gravity}")
+        
+        if item.measured_kettle_size:
+            brew_measurements.append(f"Kettle Size: {item.measured_kettle_size}L")
+        
+        if item.measured_og:
+            # Compare to recipe OG
+            target_og = getattr(item.recipe, 'og', None) if item.recipe else None
+            if target_og:
+                delta = item.measured_og - target_og
+                brew_measurements.append(f"Measured OG: {item.measured_og} ({delta:+.3f})")
+            else:
+                brew_measurements.append(f"Measured OG: {item.measured_og}")
+        
+        if item.measured_batch_size:
+            # Compare to recipe batch size
+            target_batch_size = getattr(item.recipe, 'batch_size', None) if item.recipe else None
+            if target_batch_size:
+                delta = item.measured_batch_size - target_batch_size
+                brew_measurements.append(f"Batch Size: {item.measured_batch_size}L ({delta:+.2f}L)")
+            else:
+                brew_measurements.append(f"Batch Size: {item.measured_batch_size}L")
+        
+        if item.measured_fermenter_top_up:
+            brew_measurements.append(f"Fermenter Top-Up: {item.measured_fermenter_top_up}L")
+        
+        if brew_measurements:
+            formatted_response += "\nBrew Day Measurements:\n---------------------\n"
+            for measurement in brew_measurements:
+                formatted_response += f"- {measurement}\n"
+        
+        # Add fermentation measurements if any exist
+        fermentation_measurements = []
+        if item.measured_fg:
+            # Compare to recipe FG
+            target_fg = getattr(item.recipe, 'fg', None) if item.recipe else None
+            if target_fg:
+                delta = item.measured_fg - target_fg
+                fermentation_measurements.append(f"Measured FG: {item.measured_fg} ({delta:+.3f})")
+            else:
+                fermentation_measurements.append(f"Measured FG: {item.measured_fg}")
+        
+        if item.measured_abv:
+            # Compare to recipe ABV
+            target_abv = getattr(item.recipe, 'abv', None) if item.recipe else None
+            if target_abv:
+                delta = item.measured_abv - target_abv
+                fermentation_measurements.append(f"Measured ABV: {item.measured_abv}% ({delta:+.2f}%)")
+            else:
+                fermentation_measurements.append(f"Measured ABV: {item.measured_abv}%")
+        
+        if item.measured_attenuation:
+            # Compare to recipe attenuation
+            target_attenuation = getattr(item.recipe, 'attenuation', None) if item.recipe else None
+            if target_attenuation:
+                delta = item.measured_attenuation - target_attenuation
+                fermentation_measurements.append(f"Measured Attenuation: {item.measured_attenuation}% ({delta:+.2f}%)")
+            else:
+                fermentation_measurements.append(f"Measured Attenuation: {item.measured_attenuation}%")
+        
+        if item.measured_bottling_size:
+            fermentation_measurements.append(f"Bottling Size: {item.measured_bottling_size}L")
+        
+        if item.measured_efficiency:
+            # Compare to recipe brewhouse efficiency
+            target_efficiency = getattr(item.recipe, 'efficiency', None) if item.recipe else None
+            if target_efficiency:
+                delta = item.measured_efficiency - target_efficiency
+                fermentation_measurements.append(f"Overall Efficiency: {item.measured_efficiency}% ({delta:+.2f}%)")
+            else:
+                fermentation_measurements.append(f"Overall Efficiency: {item.measured_efficiency}%")
+        
+        if item.measured_mash_efficiency:
+            # Compare to recipe mash efficiency
+            target_mash_eff = getattr(item.recipe, 'mash_efficiency', None) if item.recipe else None
+            if target_mash_eff:
+                delta = item.measured_mash_efficiency - target_mash_eff
+                fermentation_measurements.append(f"Mash Efficiency: {item.measured_mash_efficiency}% ({delta:+.2f}%)")
+            else:
+                fermentation_measurements.append(f"Mash Efficiency: {item.measured_mash_efficiency}%")
+        
+        if item.measured_kettle_efficiency:
+            fermentation_measurements.append(f"Kettle Efficiency: {item.measured_kettle_efficiency}%")
+        
+        if item.measured_conversion_efficiency:
+            fermentation_measurements.append(f"Conversion Efficiency: {item.measured_conversion_efficiency}%")
+        
+        if fermentation_measurements:
+            formatted_response += "\nFermentation Measurements:\n-------------------------\n"
+            for measurement in fermentation_measurements:
+                formatted_response += f"- {measurement}\n"
+        
         if item.notes:
             formatted_response += "\nNotes:\n"
             for note in item.notes:
