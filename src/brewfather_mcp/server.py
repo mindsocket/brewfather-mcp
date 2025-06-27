@@ -405,7 +405,7 @@ Batch Number: {item.batch_no or 'N/A'}
 Status: {item.status or 'N/A'}
 Brewer: {item.brewer or 'N/A'}
 Brew Date: {brew_date_str}
-Recipe Name: {item.recipe.name}
+Recipe Name: {item.recipe_name}
 """
             formatted_response.append(formatted)
         return "---\n".join(formatted_response) if formatted_response else "No batches found."
@@ -469,14 +469,14 @@ Bottling Date: {bottling_date_str}
 
 Gravity & Alcohol:
 -----------------
-Original Gravity (OG): {item.og or 'N/A'}
-Final Gravity (FG): {item.fg or 'N/A'}
-ABV: {item.abv or 'N/A'}%
+Original Gravity (OG): {item.measured_og or item.og or 'N/A'}
+Final Gravity (FG): {item.measured_fg or item.fg or 'N/A'}
+ABV: {item.measured_abv or item.abv or 'N/A'}%
 
 Carbonation:
 -----------
 Type: {item.carbonation_type or 'N/A'}
-Level: {item.carbonation_level or 'N/A'} volumes
+Level: {item.carbonation_level or (item.recipe.carbonation if item.recipe else None) or 'N/A'} volumes
 
 Tags: {', '.join(item.tags) if item.tags else 'None'}
 """
@@ -721,4 +721,175 @@ async def update_yeast_inventory_tool(item_id: str, inventory_amount: float) -> 
         return f"Yeast inventory for item {item_id} updated to {inventory_amount} packets."
     except Exception:
         logger.exception(f"Error updating yeast inventory for item {item_id}")
+        raise
+
+
+# Brewtracker endpoints - Enhanced brewing information
+@mcp.tool(
+    name="get_batch_brewtracker",
+    description="Get detailed brewing process guidance and timeline for a batch",
+)
+async def get_batch_brewtracker(batch_id: str) -> str:
+    """Get brewtracker status with step-by-step brewing guidance"""
+    try:
+        tracker = await brewfather_client.get_batch_brewtracker(batch_id)
+        
+        # Handle case where no brewtracker data exists
+        if not tracker.name or not tracker.stages:
+            return f"No brewtracker data available for batch {batch_id}. This batch may not have brewing process tracking enabled."
+        
+        formatted_response = f"""BREWING PROCESS TRACKER: {tracker.name}
+{'='*60}
+
+Status: {'ACTIVE' if tracker.active else 'INACTIVE'} | Stage {tracker.stage + 1} of {len(tracker.stages)}
+Completed: {'Yes' if tracker.completed else 'No'} | Notifications: {'On' if tracker.notify else 'Off'}
+
+"""
+        
+        for i, stage in enumerate(tracker.stages):
+            status_icon = "🔄" if i == tracker.stage and tracker.active else "✅" if i < tracker.stage else "⏳"
+            formatted_response += f"{status_icon} STAGE {i + 1}: {stage.name.upper()}\n"
+            formatted_response += f"Duration: {stage.duration // 60} min | Current Step: {stage.step + 1}/{len(stage.steps)}\n"
+            formatted_response += f"Position: {stage.position // 60} min {'(PAUSED)' if stage.paused else ''}\n\n"
+            
+            for j, step in enumerate(stage.steps):
+                step_icon = "▶️" if i == tracker.stage and j == stage.step and tracker.active else "✅" if j < stage.step or i < tracker.stage else "⏸️"
+                step_name = step.name if step.name else f"{step.type.title()} Step"
+                formatted_response += f"  {step_icon} {step_name}"
+                
+                if step.time > 0:
+                    formatted_response += f" @ {step.time // 60} min"
+                if step.value:
+                    formatted_response += f" ({step.value}°C)"
+                formatted_response += "\n"
+                
+                if step.description:
+                    formatted_response += f"     📝 {step.description}\n"
+                
+                if step.tooltip and step.tooltip != step.description:
+                    formatted_response += f"     💡 {step.tooltip}\n"
+                    
+                formatted_response += "\n"
+            
+            formatted_response += "\n"
+        
+        return formatted_response
+
+    except Exception:
+        logger.exception("Error getting brewtracker data")
+        raise
+
+
+@mcp.tool(
+    name="get_batch_last_reading",
+    description="Get the most recent sensor reading from brewing devices for a batch",
+)
+async def get_batch_last_reading(batch_id: str) -> str:
+    """Get last sensor reading with current brewing status"""
+    try:
+        reading = await brewfather_client.get_batch_last_reading(batch_id)
+        
+        from datetime import datetime
+        reading_time = datetime.fromtimestamp(reading.time / 1000).strftime("%Y-%m-%d %H:%M:%S")
+        
+        formatted_response = f"""LATEST SENSOR READING
+{'='*40}
+
+Device: {reading.name} ({reading.device_type})
+Reading Time: {reading_time}
+Device ID: {reading.id}
+
+MEASUREMENTS:
+-------------"""
+        
+        if reading.temp is not None:
+            formatted_response += f"\n🌡️  Temperature: {reading.temp}°C"
+        
+        if reading.sg is not None:
+            formatted_response += f"\n🍺  Specific Gravity: {reading.sg:.4f}"
+            
+        if reading.battery is not None:
+            battery_icon = "🔋" if reading.battery > 50 else "🪫" if reading.battery > 20 else "🚨"
+            formatted_response += f"\n{battery_icon}  Battery: {reading.battery:.1f}%"
+            
+        if reading.rssi is not None:
+            signal_icon = "📶" if reading.rssi > -50 else "📊" if reading.rssi > -70 else "📱"
+            formatted_response += f"\n{signal_icon}  Signal: {reading.rssi:.1f} dBm"
+            
+        if reading.target_temp is not None:
+            formatted_response += f"\n🎯  Target Temp: {reading.target_temp}°C"
+            
+        if reading.ph is not None:
+            formatted_response += f"\n🧪  pH: {reading.ph}"
+            
+        if reading.pressure is not None:
+            formatted_response += f"\n⚡  Pressure: {reading.pressure}"
+        
+        return formatted_response
+
+    except Exception:
+        logger.exception("Error getting last reading data")
+        raise
+
+
+@mcp.tool(
+    name="get_batch_readings_summary",
+    description="Get a summary of recent sensor readings for a batch (limited to avoid large responses)",
+)
+async def get_batch_readings_summary(batch_id: str, limit: int = 10) -> str:
+    """Get summary of recent readings with trends"""
+    try:
+        readings = await brewfather_client.get_batch_readings(batch_id)
+        
+        if not readings.root:
+            return "No sensor readings found for this batch."
+        
+        # Get the most recent readings (limited to avoid huge responses)
+        recent_readings = readings.root[-limit:] if len(readings.root) > limit else readings.root
+        
+        from datetime import datetime
+        
+        formatted_response = f"""RECENT SENSOR READINGS SUMMARY
+{'='*50}
+
+Total readings available: {len(readings.root)}
+Showing latest {len(recent_readings)} readings:
+
+"""
+        
+        for reading in recent_readings:
+            reading_time = datetime.fromtimestamp(reading.time / 1000).strftime("%m-%d %H:%M")
+            
+            device_name = reading.name or reading.id or reading.type or "Unknown Device"
+            line = f"{reading_time} | {device_name}"
+            
+            if reading.temp is not None:
+                line += f" | {reading.temp:.1f}°C"
+            if reading.sg is not None:
+                line += f" | SG {reading.sg:.4f}"
+            if reading.battery is not None:
+                line += f" | {reading.battery:.0f}%"
+                
+            formatted_response += line + "\n"
+        
+        # Add trend analysis if we have enough data
+        if len(recent_readings) >= 3:
+            formatted_response += "\nTREND ANALYSIS:\n"
+            first = recent_readings[0]
+            last = recent_readings[-1]
+            
+            if first.temp is not None and last.temp is not None:
+                temp_change = last.temp - first.temp
+                temp_trend = "↗️ Rising" if temp_change > 0.5 else "↘️ Falling" if temp_change < -0.5 else "➡️ Stable"
+                formatted_response += f"Temperature: {temp_trend} ({temp_change:+.1f}°C)\n"
+                
+            if first.sg is not None and last.sg is not None:
+                sg_change = last.sg - first.sg
+                sg_trend = "↗️ Rising" if sg_change > 0.002 else "↘️ Falling" if sg_change < -0.002 else "➡️ Stable"
+                formatted_response += f"Specific Gravity: {sg_trend} ({sg_change:+.4f})\n"
+        
+        return formatted_response
+
+    except Exception:
+        logger.exception("Error getting readings summary")
         raise

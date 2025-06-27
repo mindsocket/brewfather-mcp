@@ -182,3 +182,4 @@ cython_debug/
 
 # Debug and analysis output
 debug/
+.claude/settings.local.json
