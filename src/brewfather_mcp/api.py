@@ -17,6 +17,7 @@ from .types import (
     BatchDetail,
     BatchList,
 )
+from .types.brewtracker import BrewTrackerStatus, BatchReadingsList, LastReading
 
 BASE_URL: str = "https://api.brewfather.app/v2"
 
@@ -233,3 +234,22 @@ class BrewfatherClient:
             f"inventory/{InventoryCategory.MISCS}", id=id
         )
         await self._make_patch_request(url, {"inventory": inventory})
+
+    # Brewtracker endpoints
+    async def get_batch_brewtracker(self, batch_id: str) -> BrewTrackerStatus:
+        """Get brewtracker status for a batch"""
+        url = self._build_url("batches", id=f"{batch_id}/brewtracker")
+        json_response = await self._make_request(url)
+        return BrewTrackerStatus.model_validate_json(json_response)
+    
+    async def get_batch_readings(self, batch_id: str) -> BatchReadingsList:
+        """Get all readings for a batch"""
+        url = self._build_url("batches", id=f"{batch_id}/readings")
+        json_response = await self._make_request(url)
+        return BatchReadingsList.model_validate_json(json_response)
+    
+    async def get_batch_last_reading(self, batch_id: str) -> LastReading:
+        """Get last reading for a batch"""
+        url = self._build_url("batches", id=f"{batch_id}/readings/last")
+        json_response = await self._make_request(url)
+        return LastReading.model_validate_json(json_response)

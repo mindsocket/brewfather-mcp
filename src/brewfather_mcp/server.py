@@ -469,17 +469,148 @@ Bottling Date: {bottling_date_str}
 
 Gravity & Alcohol:
 -----------------
-Original Gravity (OG): {item.og or 'N/A'}
-Final Gravity (FG): {item.fg or 'N/A'}
-ABV: {item.abv or 'N/A'}%
+Original Gravity (OG): {item.measured_og or item.og or 'N/A'}
+Final Gravity (FG): {item.measured_fg or item.fg or 'N/A'}
+ABV: {item.measured_abv or item.abv or 'N/A'}%
 
 Carbonation:
 -----------
 Type: {item.carbonation_type or 'N/A'}
-Level: {item.carbonation_level or 'N/A'} volumes
+Level: {item.carbonation_level or (item.recipe.carbonation if item.recipe else None) or 'N/A'} volumes
 
 Tags: {', '.join(item.tags) if item.tags else 'None'}
 """
+        
+        # Add brew day measurements if any exist
+        brew_measurements = []
+        if item.measured_mash_ph:
+            # Mash pH target is typically from water profile
+            target_ph = getattr(item.recipe, 'mash', {}).get('ph') if item.recipe else None
+            if target_ph:
+                delta = item.measured_mash_ph - target_ph
+                brew_measurements.append(f"Mash pH: {item.measured_mash_ph} ({delta:+.2f})")
+            else:
+                brew_measurements.append(f"Mash pH: {item.measured_mash_ph}")
+        
+        if item.measured_first_wort_gravity:
+            brew_measurements.append(f"First Wort Gravity: {item.measured_first_wort_gravity}")
+        
+        if item.measured_pre_boil_gravity:
+            # Compare to recipe pre-boil gravity
+            target_pre_boil = getattr(item.recipe, 'pre_boil_gravity', None) if item.recipe else None
+            if target_pre_boil:
+                delta = item.measured_pre_boil_gravity - target_pre_boil
+                brew_measurements.append(f"Pre-Boil Gravity: {item.measured_pre_boil_gravity} ({delta:+.3f})")
+            else:
+                brew_measurements.append(f"Pre-Boil Gravity: {item.measured_pre_boil_gravity}")
+        
+        if item.measured_boil_size:
+            # Compare to recipe boil size
+            target_boil_size = getattr(item.recipe, 'boil_size', None) if item.recipe else None
+            if target_boil_size:
+                delta = item.measured_boil_size - target_boil_size
+                brew_measurements.append(f"Boil Size: {item.measured_boil_size}L ({delta:+.2f}L)")
+            else:
+                brew_measurements.append(f"Boil Size: {item.measured_boil_size}L")
+        
+        if item.measured_post_boil_gravity:
+            # Compare to recipe post-boil gravity
+            target_post_boil = getattr(item.recipe, 'post_boil_gravity', None) if item.recipe else None
+            if target_post_boil:
+                delta = item.measured_post_boil_gravity - target_post_boil
+                brew_measurements.append(f"Post-Boil Gravity: {item.measured_post_boil_gravity} ({delta:+.3f})")
+            else:
+                brew_measurements.append(f"Post-Boil Gravity: {item.measured_post_boil_gravity}")
+        
+        if item.measured_kettle_size:
+            brew_measurements.append(f"Kettle Size: {item.measured_kettle_size}L")
+        
+        if item.measured_og:
+            # Compare to recipe OG
+            target_og = getattr(item.recipe, 'og', None) if item.recipe else None
+            if target_og:
+                delta = item.measured_og - target_og
+                brew_measurements.append(f"Measured OG: {item.measured_og} ({delta:+.3f})")
+            else:
+                brew_measurements.append(f"Measured OG: {item.measured_og}")
+        
+        if item.measured_batch_size:
+            # Compare to recipe batch size
+            target_batch_size = getattr(item.recipe, 'batch_size', None) if item.recipe else None
+            if target_batch_size:
+                delta = item.measured_batch_size - target_batch_size
+                brew_measurements.append(f"Batch Size: {item.measured_batch_size}L ({delta:+.2f}L)")
+            else:
+                brew_measurements.append(f"Batch Size: {item.measured_batch_size}L")
+        
+        if item.measured_fermenter_top_up:
+            brew_measurements.append(f"Fermenter Top-Up: {item.measured_fermenter_top_up}L")
+        
+        if brew_measurements:
+            formatted_response += "\nBrew Day Measurements:\n---------------------\n"
+            for measurement in brew_measurements:
+                formatted_response += f"- {measurement}\n"
+        
+        # Add fermentation measurements if any exist
+        fermentation_measurements = []
+        if item.measured_fg:
+            # Compare to recipe FG
+            target_fg = getattr(item.recipe, 'fg', None) if item.recipe else None
+            if target_fg:
+                delta = item.measured_fg - target_fg
+                fermentation_measurements.append(f"Measured FG: {item.measured_fg} ({delta:+.3f})")
+            else:
+                fermentation_measurements.append(f"Measured FG: {item.measured_fg}")
+        
+        if item.measured_abv:
+            # Compare to recipe ABV
+            target_abv = getattr(item.recipe, 'abv', None) if item.recipe else None
+            if target_abv:
+                delta = item.measured_abv - target_abv
+                fermentation_measurements.append(f"Measured ABV: {item.measured_abv}% ({delta:+.2f}%)")
+            else:
+                fermentation_measurements.append(f"Measured ABV: {item.measured_abv}%")
+        
+        if item.measured_attenuation:
+            # Compare to recipe attenuation
+            target_attenuation = getattr(item.recipe, 'attenuation', None) if item.recipe else None
+            if target_attenuation:
+                delta = item.measured_attenuation - target_attenuation
+                fermentation_measurements.append(f"Measured Attenuation: {item.measured_attenuation}% ({delta:+.2f}%)")
+            else:
+                fermentation_measurements.append(f"Measured Attenuation: {item.measured_attenuation}%")
+        
+        if item.measured_bottling_size:
+            fermentation_measurements.append(f"Bottling Size: {item.measured_bottling_size}L")
+        
+        if item.measured_efficiency:
+            # Compare to recipe brewhouse efficiency
+            target_efficiency = getattr(item.recipe, 'efficiency', None) if item.recipe else None
+            if target_efficiency:
+                delta = item.measured_efficiency - target_efficiency
+                fermentation_measurements.append(f"Overall Efficiency: {item.measured_efficiency}% ({delta:+.2f}%)")
+            else:
+                fermentation_measurements.append(f"Overall Efficiency: {item.measured_efficiency}%")
+        
+        if item.measured_mash_efficiency:
+            # Compare to recipe mash efficiency
+            target_mash_eff = getattr(item.recipe, 'mash_efficiency', None) if item.recipe else None
+            if target_mash_eff:
+                delta = item.measured_mash_efficiency - target_mash_eff
+                fermentation_measurements.append(f"Mash Efficiency: {item.measured_mash_efficiency}% ({delta:+.2f}%)")
+            else:
+                fermentation_measurements.append(f"Mash Efficiency: {item.measured_mash_efficiency}%")
+        
+        if item.measured_kettle_efficiency:
+            fermentation_measurements.append(f"Kettle Efficiency: {item.measured_kettle_efficiency}%")
+        
+        if item.measured_conversion_efficiency:
+            fermentation_measurements.append(f"Conversion Efficiency: {item.measured_conversion_efficiency}%")
+        
+        if fermentation_measurements:
+            formatted_response += "\nFermentation Measurements:\n-------------------------\n"
+            for measurement in fermentation_measurements:
+                formatted_response += f"- {measurement}\n"
         
         if item.notes:
             formatted_response += "\nNotes:\n"
@@ -721,4 +852,175 @@ async def update_yeast_inventory_tool(item_id: str, inventory_amount: float) -> 
         return f"Yeast inventory for item {item_id} updated to {inventory_amount} packets."
     except Exception:
         logger.exception(f"Error updating yeast inventory for item {item_id}")
+        raise
+
+
+# Brewtracker endpoints - Enhanced brewing information
+@mcp.tool(
+    name="get_batch_brewtracker",
+    description="Get detailed brewing process guidance and timeline for a batch",
+)
+async def get_batch_brewtracker(batch_id: str) -> str:
+    """Get brewtracker status with step-by-step brewing guidance"""
+    try:
+        tracker = await brewfather_client.get_batch_brewtracker(batch_id)
+        
+        # Handle case where no brewtracker data exists
+        if not tracker.name or not tracker.stages:
+            return f"No brewtracker data available for batch {batch_id}. This batch may not have brewing process tracking enabled."
+        
+        formatted_response = f"""BREWING PROCESS TRACKER: {tracker.name}
+{'='*60}
+
+Status: {'ACTIVE' if tracker.active else 'INACTIVE'} | Stage {tracker.stage + 1} of {len(tracker.stages)}
+Completed: {'Yes' if tracker.completed else 'No'} | Notifications: {'On' if tracker.notify else 'Off'}
+
+"""
+        
+        for i, stage in enumerate(tracker.stages):
+            status_icon = "🔄" if i == tracker.stage and tracker.active else "✅" if i < tracker.stage else "⏳"
+            formatted_response += f"{status_icon} STAGE {i + 1}: {stage.name.upper()}\n"
+            formatted_response += f"Duration: {stage.duration // 60} min | Current Step: {stage.step + 1}/{len(stage.steps)}\n"
+            formatted_response += f"Position: {stage.position // 60} min {'(PAUSED)' if stage.paused else ''}\n\n"
+            
+            for j, step in enumerate(stage.steps):
+                step_icon = "▶️" if i == tracker.stage and j == stage.step and tracker.active else "✅" if j < stage.step or i < tracker.stage else "⏸️"
+                step_name = step.name if step.name else f"{step.type.title()} Step"
+                formatted_response += f"  {step_icon} {step_name}"
+                
+                if step.time > 0:
+                    formatted_response += f" @ {step.time // 60} min"
+                if step.value:
+                    formatted_response += f" ({step.value}°C)"
+                formatted_response += "\n"
+                
+                if step.description:
+                    formatted_response += f"     📝 {step.description}\n"
+                
+                if step.tooltip and step.tooltip != step.description:
+                    formatted_response += f"     💡 {step.tooltip}\n"
+                    
+                formatted_response += "\n"
+            
+            formatted_response += "\n"
+        
+        return formatted_response
+
+    except Exception:
+        logger.exception("Error getting brewtracker data")
+        raise
+
+
+@mcp.tool(
+    name="get_batch_last_reading",
+    description="Get the most recent sensor reading from brewing devices for a batch",
+)
+async def get_batch_last_reading(batch_id: str) -> str:
+    """Get last sensor reading with current brewing status"""
+    try:
+        reading = await brewfather_client.get_batch_last_reading(batch_id)
+        
+        from datetime import datetime
+        reading_time = datetime.fromtimestamp(reading.time / 1000).strftime("%Y-%m-%d %H:%M:%S")
+        
+        formatted_response = f"""LATEST SENSOR READING
+{'='*40}
+
+Device: {reading.name} ({reading.device_type})
+Reading Time: {reading_time}
+Device ID: {reading.id}
+
+MEASUREMENTS:
+-------------"""
+        
+        if reading.temp is not None:
+            formatted_response += f"\n🌡️  Temperature: {reading.temp}°C"
+        
+        if reading.sg is not None:
+            formatted_response += f"\n🍺  Specific Gravity: {reading.sg:.4f}"
+            
+        if reading.battery is not None:
+            battery_icon = "🔋" if reading.battery > 50 else "🪫" if reading.battery > 20 else "🚨"
+            formatted_response += f"\n{battery_icon}  Battery: {reading.battery:.1f}%"
+            
+        if reading.rssi is not None:
+            signal_icon = "📶" if reading.rssi > -50 else "📊" if reading.rssi > -70 else "📱"
+            formatted_response += f"\n{signal_icon}  Signal: {reading.rssi:.1f} dBm"
+            
+        if reading.target_temp is not None:
+            formatted_response += f"\n🎯  Target Temp: {reading.target_temp}°C"
+            
+        if reading.ph is not None:
+            formatted_response += f"\n🧪  pH: {reading.ph}"
+            
+        if reading.pressure is not None:
+            formatted_response += f"\n⚡  Pressure: {reading.pressure}"
+        
+        return formatted_response
+
+    except Exception:
+        logger.exception("Error getting last reading data")
+        raise
+
+
+@mcp.tool(
+    name="get_batch_readings_summary",
+    description="Get a summary of recent sensor readings for a batch (limited to avoid large responses)",
+)
+async def get_batch_readings_summary(batch_id: str, limit: int = 10) -> str:
+    """Get summary of recent readings with trends"""
+    try:
+        readings = await brewfather_client.get_batch_readings(batch_id)
+        
+        if not readings.root:
+            return "No sensor readings found for this batch."
+        
+        # Get the most recent readings (limited to avoid huge responses)
+        recent_readings = readings.root[-limit:] if len(readings.root) > limit else readings.root
+        
+        from datetime import datetime
+        
+        formatted_response = f"""RECENT SENSOR READINGS SUMMARY
+{'='*50}
+
+Total readings available: {len(readings.root)}
+Showing latest {len(recent_readings)} readings:
+
+"""
+        
+        for reading in recent_readings:
+            reading_time = datetime.fromtimestamp(reading.time / 1000).strftime("%m-%d %H:%M")
+            
+            device_name = reading.name or reading.id or reading.type or "Unknown Device"
+            line = f"{reading_time} | {device_name}"
+            
+            if reading.temp is not None:
+                line += f" | {reading.temp:.1f}°C"
+            if reading.sg is not None:
+                line += f" | SG {reading.sg:.4f}"
+            if reading.battery is not None:
+                line += f" | {reading.battery:.0f}%"
+                
+            formatted_response += line + "\n"
+        
+        # Add trend analysis if we have enough data
+        if len(recent_readings) >= 3:
+            formatted_response += "\nTREND ANALYSIS:\n"
+            first = recent_readings[0]
+            last = recent_readings[-1]
+            
+            if first.temp is not None and last.temp is not None:
+                temp_change = last.temp - first.temp
+                temp_trend = "↗️ Rising" if temp_change > 0.5 else "↘️ Falling" if temp_change < -0.5 else "➡️ Stable"
+                formatted_response += f"Temperature: {temp_trend} ({temp_change:+.1f}°C)\n"
+                
+            if first.sg is not None and last.sg is not None:
+                sg_change = last.sg - first.sg
+                sg_trend = "↗️ Rising" if sg_change > 0.002 else "↘️ Falling" if sg_change < -0.002 else "➡️ Stable"
+                formatted_response += f"Specific Gravity: {sg_trend} ({sg_change:+.4f})\n"
+        
+        return formatted_response
+
+    except Exception:
+        logger.exception("Error getting readings summary")
         raise
