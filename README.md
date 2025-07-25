@@ -24,12 +24,7 @@ A Model Context Protocol (MCP) server that integrates with the Brewfather API to
 
 ## Installation
 
-1. Clone this repository:
-```bash
-git clone https://github.com/your-username/brewfather-mcp.git
-cd brewfather-mcp
-```
-
+1. Clone this repository
 2. Install dependencies:
 ```bash
 uv sync
