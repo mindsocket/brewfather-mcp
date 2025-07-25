@@ -181,6 +181,24 @@ def mock_brewfather_client(mocker):
     batch.tags = []
     batch.measurements = []
     batch.measurement_devices = []
+    # Add measured values that might be used in calculations
+    batch.measured_og = None
+    batch.measured_fg = None
+    batch.measured_abv = None
+    batch.measured_mash_ph = None
+    batch.measured_first_wort_gravity = None
+    batch.measured_pre_boil_gravity = None
+    batch.measured_post_boil_gravity = None
+    batch.measured_batch_size = None
+    batch.measured_boil_size = None
+    batch.measured_kettle_size = None
+    batch.measured_fermenter_top_up = None
+    batch.measured_bottling_size = None
+    batch.measured_attenuation = None
+    batch.measured_efficiency = None
+    batch.measured_mash_efficiency = None
+    batch.measured_kettle_efficiency = None
+    batch.measured_conversion_efficiency = None
     batches_list = MagicMock(spec=BatchList)
     batches_list.root = [batch]
     client.get_batches_list.return_value = batches_list

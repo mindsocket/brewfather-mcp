@@ -39,22 +39,33 @@ def load_debug_json(filename: str) -> dict | list:
         return json.load(f)
 
 
-def get_debug_files_by_type(file_type: str) -> List[Tuple[str, str]]:
-    """Get all debug JSON files of a specific type.
+def get_debug_files_by_type(pattern: str) -> List[Tuple[str, str]]:
+    """Get all debug JSON files matching a regex pattern.
+    
+    Args:
+        pattern: Regex pattern to match against filenames (without .json extension).
+                 Use a capture group to extract the test_id part.
     
     Returns:
         List of tuples: (filename, test_id)
     """
+    import re
     debug_dir = Path(__file__).parent.parent / "debug"
     files = []
     
-    for json_file in debug_dir.glob(f"{file_type}*.json"):
+    for json_file in debug_dir.glob("*.json"):
         # Skip files with query parameters in the name
         if "?" in json_file.name:
             continue
-        # Create a readable test ID from filename
-        test_id = json_file.stem.replace(file_type + "_", "").replace(file_type, "list")
-        files.append((json_file.name, test_id))
+            
+        filename = json_file.name
+        stem = json_file.stem  # filename without .json
+        
+        match = re.match(pattern, stem)
+        if match:
+            # Extract test_id from first capture group, or use "list" as fallback
+            test_id = match.group(1) if match.groups() and match.group(1) else "list"
+            files.append((filename, test_id))
     
     return files
 
@@ -153,7 +164,7 @@ class TestFermentables:
         assert request.method == "PATCH"
         assert json.loads(request.content) == {"inventory": inventory_amount}
 
-    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("inventory_fermentables"))
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type(r"^inventory_fermentables(?:_(.+))?$"))
     @pytest.mark.asyncio
     async def test_fermentables_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
         """Test that all fermentables debug data validates correctly."""
@@ -234,7 +245,7 @@ class TestHops:
         request = respx_mock.calls.last.request
         assert json.loads(request.content) == {"inventory": inventory_amount}
 
-    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("inventory_hops"))
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type(r"^inventory_hops(?:_(.+))?$"))
     @pytest.mark.asyncio
     async def test_hops_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
         """Test that all hops debug data validates correctly."""
@@ -315,7 +326,7 @@ class TestYeasts:
         request = respx_mock.calls.last.request
         assert json.loads(request.content) == {"inventory": inventory_amount}
 
-    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("inventory_yeasts"))
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type(r"^inventory_yeasts(?:_(.+))?$"))
     @pytest.mark.asyncio
     async def test_yeasts_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
         """Test that all yeasts debug data validates correctly."""
@@ -409,7 +420,7 @@ class TestBatches:
         assert str(request.url) == f"{BASE_URL}/batches/{batch_id}"
         assert json.loads(request.content) == payload
 
-    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("batches"))
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type(r"^batches(?:_([A-Za-z0-9]+))?$"))
     @pytest.mark.asyncio
     async def test_batches_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
         """Test that all batches debug data validates correctly."""
@@ -466,7 +477,7 @@ class TestRecipes:
         assert result.id == recipe_id
         assert result.author == "Brewer Joe"
 
-    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("recipes"))
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type(r"^recipes(?:_(.+))?$"))
     @pytest.mark.asyncio
     async def test_recipes_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
         """Test that all recipes debug data validates correctly."""
@@ -539,7 +550,7 @@ class TestMiscellaneous:
         request = respx_mock.calls.last.request
         assert json.loads(request.content) == {"inventory": inventory_amount}
 
-    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type("inventory_miscs"))
+    @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type(r"^inventory_miscs(?:_(.+))?$"))
     @pytest.mark.asyncio
     async def test_miscs_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
         """Test that all misc debug data validates correctly."""
