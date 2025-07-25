@@ -24,6 +24,26 @@ A Model Context Protocol (MCP) server that integrates with the Brewfather API to
 
 ## Installation
 
+### Option 1: Direct Installation with uvx (Recommended)
+
+The easiest way to use this MCP server is with `uvx`, directly from the GitHub repository:
+
+```bash
+# Set your credentials as environment variables
+export BREWFATHER_API_USER_ID="your-api-user-id"
+export BREWFATHER_API_KEY="your-api-key"
+
+# Run the server
+uvx --from git+https://github.com/mindsocket/brewfather-mcp.git brewfather-mcp
+```
+
+For debugging:
+```bash
+uvx --from git+https://github.com/mindsocket/brewfather-mcp.git brewfather-mcp --debug
+```
+
+### Option 2: Local Development Installation
+
 1. Clone this repository
 2. Install dependencies:
 ```bash
@@ -32,15 +52,39 @@ uv sync
 
 ## Configuration
 
-#### Claude Desktop Configuration
+### Claude Desktop Configuration
 
-To use this server with Claude Desktop, add the following to your Claude Desktop configuration file:
+#### Option 1: Using uvx (Recommended)
+
+To use this server with Claude Desktop via uvx, add the following to your Claude Desktop configuration file:
 
 **Location of config file:**
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - Windows: `%APPDATA%\\Claude\\claude_desktop_config.json`
 
 **Configuration:**
+```json
+{
+  "mcpServers": {
+    "brewfather": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/mindsocket/brewfather-mcp.git",
+        "brewfather-mcp"
+      ],
+      "env": {
+        "BREWFATHER_API_USER_ID": "your-api-user-id",
+        "BREWFATHER_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+#### Option 2: Using Local Installation
+
+To use this server with Claude Desktop from a local clone, use the same config file location as above with this configuration:
 ```json
 {
   "mcpServers": {
