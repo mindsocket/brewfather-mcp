@@ -39,7 +39,7 @@ class HopBase(BaseModel):
     """
     name: str
     type: HopForm | str  # Form type - use enum but allow string for compatibility
-    alpha: float  # Alpha acid percentage
+    alpha: float | None = None  # Alpha acid percentage - may be missing for new inventory
 
     model_config = {
         "populate_by_name": True,

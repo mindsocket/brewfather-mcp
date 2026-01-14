@@ -227,6 +227,7 @@ Used In: {item.used_in}
 Notes: {item.notes}
 User Notes: {item.user_notes}
 Hidden: {item.hidden}
+Lot Number: {item.lot_number}
 Best Before Date: {item.best_before_date}
 Manufacturing Date: {item.manufacturing_date}
 Version: {item.version}
@@ -914,7 +915,28 @@ Completed: {'Yes' if tracker.completed else 'No'} | Notifications: {'On' if trac
                 
                 if step.tooltip and step.tooltip != step.description:
                     formatted_response += f"     💡 {step.tooltip}\n"
-                    
+
+                # Add timing calculation for the current active step
+                if i == tracker.stage and j == stage.step and tracker.active and step.start_time and step.duration:
+                    try:
+                        current_time = int(datetime.now().timestamp() * 1000)  # Current time in ms
+                        elapsed_ms = current_time - step.start_time
+                        elapsed_seconds = elapsed_ms / 1000
+                        remaining_seconds = step.duration - elapsed_seconds
+
+                        if remaining_seconds > 0:
+                            remaining_minutes = int(remaining_seconds // 60)
+                            remaining_secs = int(remaining_seconds % 60)
+                            elapsed_minutes = int(elapsed_seconds // 60)
+                            elapsed_secs = int(elapsed_seconds % 60)
+
+                            formatted_response += f"     ⏱️  Elapsed: {elapsed_minutes}:{elapsed_secs:02d} | Remaining: {remaining_minutes}:{remaining_secs:02d}\n"
+                        else:
+                            formatted_response += f"     ⏰  Step should have completed! ({int(elapsed_seconds//60)} min elapsed)\n"
+                    except Exception:
+                        # If timing calculation fails, just continue without it
+                        pass
+
                 formatted_response += "\n"
             
             formatted_response += "\n"

@@ -16,6 +16,8 @@ class BrewTrackerStep(BaseModel):
     tooltip: Optional[str] = None
     pause_before: bool = Field(alias="pauseBefore", default=False)
     final: Optional[bool] = None
+    start_time: Optional[int] = Field(alias="startTime", default=None)  # Unix timestamp in ms
+    end_time: Optional[int] = Field(alias="endTime", default=None)  # Unix timestamp in ms
 
     model_config = {
         "populate_by_name": True,
@@ -31,6 +33,7 @@ class BrewTrackerStage(BaseModel):
     position: int  # Current position in seconds
     paused: bool
     steps: List[BrewTrackerStep]
+    start: Optional[int] = None  # Stage start timestamp in ms
 
     model_config = {
         "populate_by_name": True,
@@ -50,6 +53,7 @@ class BrewTrackerStatus(BaseModel):
     notify: bool = True
     stages: List[BrewTrackerStage] = Field(default_factory=list)
     rev: Optional[str] = Field(alias="_rev", default=None)
+    start_time: Optional[int] = Field(alias="startTime", default=None)  # Overall start timestamp in ms
 
     model_config = {
         "populate_by_name": True,
