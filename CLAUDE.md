@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Model Context Protocol (MCP) server that integrates with the Brewfather API to provide brewing inventory management and recipe analysis capabilities. The server exposes tools for managing fermentables, hops, yeasts, batches, recipes, and miscellaneous brewing supplies.
+This project provides both an MCP server and a CLI for the Brewfather API. The shared `tools/` layer (`src/brewfather_mcp/tools/`) contains the formatting logic used by both.
 
 The API is documented, but not well, at https://docs.brewfather.app/api
 In order to make robust code, we need to "test in production" by making calls to tools and debug the results. This is fine to do directly for get and list operations, but not for operations that change data. For that, we _might_ be able to create a test entry (inventory, recipe, batch) first, then test, then clean up by carefully deleting the test item.
@@ -17,6 +17,13 @@ In order to make robust code, we need to "test in production" by making calls to
 - `uv run pytest --cov` - Run tests with coverage
 - `uv install` - Install dependencies
 - `uv sync` - Sync dependencies
+
+### CLI Development
+
+- `uv run brewfather-cli --help` - Show CLI commands
+- `uv run brewfather-cli auth configure` - Set up credentials interactively
+- `uv run brewfather-cli inventory summary` - Test inventory output
+- `uv run brewfather-cli batch list --json` - Test JSON output mode
 
 ### MCP Development
 
@@ -88,9 +95,18 @@ The HTTP server can be deployed to any cloud platform that supports Python web a
 
 **MCP Server (`src/brewfather_mcp/server.py`)**
 - Uses FastMCP framework to expose tools and prompts
-- Contains all MCP tool definitions that wrap API client methods
+- Thin wrappers that delegate to the `tools/` layer
 - Includes specialized prompts for beer style suggestions based on inventory
-- Logs to `/tmp/application.log`
+- Logs to `/tmp/brewfather_mcp.log`
+
+**CLI (`src/brewfather_mcp/cli/`)**
+- Click-based command hierarchy: `brewfather-cli <category> <command> [--json]`
+- Auth: env vars > `~/.config/brewfather-cli/auth.json`
+- Text mode calls `tools/` functions; `--json` returns raw API data
+
+**Tools Layer (`src/brewfather_mcp/tools/`)**
+- Shared async functions `(client, ...) -> str` used by both MCP server and CLI
+- One file per domain: fermentable, hop, yeast, misc, batch, recipe, inventory
 
 **Type Definitions (`src/brewfather_mcp/types.py`)**
 - Pydantic models for all Brewfather API responses
@@ -129,6 +145,6 @@ The server exposes these main tool categories:
 
 - All API methods are async and use httpx
 - Pydantic models validate all API responses
-- MCP tools provide formatted string outputs for Claude consumption
-- Error handling logs exceptions and re-raises them
+- Tools layer produces formatted string outputs
+- Exceptions propagate without logging
 - Consistent URL building pattern using `_build_url()` method

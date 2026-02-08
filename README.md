@@ -130,6 +130,49 @@ cp .env.example .env
 # Edit .env with your Brewfather API credentials
 ```
 
+## CLI
+
+The CLI provides direct shell access to Brewfather data, useful for scripting and AI agents that prefer CLI over MCP for token efficiency.
+
+### Installation
+
+```bash
+# From local clone
+uv sync
+uv run brewfather-cli --help
+
+# Install globally with uvx
+uvx --from git+https://github.com/mindsocket/brewfather-mcp.git brewfather-cli --help
+```
+
+### Authentication
+
+```bash
+brewfather-cli auth configure  # Interactive prompts for User ID and API Key
+brewfather-cli auth status     # Verify credentials and connection
+```
+
+Or set environment variables `BREWFATHER_API_USER_ID` and `BREWFATHER_API_KEY`.
+
+### Usage
+
+```bash
+brewfather-cli inventory summary
+brewfather-cli batch list
+brewfather-cli recipe list
+brewfather-cli batch detail <id> --json   # Raw JSON output
+```
+
+See `brewfather-cli --help` for the full command reference.
+
+### Agent Skill Installation
+
+To use the Brewfather CLI as an agent skill with Claude Code:
+
+```bash
+cp -R skills/brewfather ~/.claude/skills/
+```
+
 ## Available Tools
 
 The server provides the following MCP tools:

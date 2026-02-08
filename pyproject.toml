@@ -1,3 +1,6 @@
+[tool.uv]
+package = true
+
 [project]
 name = "brewfather_mcp"
 version = "0.0.2"
@@ -5,6 +8,7 @@ description = "Experimental MCP server that connections to Brewfather API"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "click>=8.1.0",
     "httpx>=0.28.1",
     "mcp[cli]>=1.5.0",
     "pydantic>=2.10.6",
@@ -17,6 +21,7 @@ dependencies = [
 
 [project.scripts]
 brewfather-mcp = "brewfather_mcp.main:main"
+brewfather-cli = "brewfather_mcp.cli:cli"
 
 [dependency-groups]
 dev = [

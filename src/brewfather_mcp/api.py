@@ -21,9 +21,11 @@ from .types.brewtracker import BrewTrackerStatus, BatchReadingsList, LastReading
 
 BASE_URL: str = "https://api.brewfather.app/v2"
 
+
 class OrderByDirection(StrEnum):
     ASCENDING = "asc"
     DESCENDING = "desc"
+
 
 class ListQueryParams:
     inventory_negative: bool | None = None
@@ -62,12 +64,13 @@ class ListQueryParams:
         else:
             return None
 
+
 class BrewfatherClient:
     """Client for interacting with the Brewfather API."""
 
-    def __init__(self):
-        user_id = os.getenv("BREWFATHER_API_USER_ID")
-        api_key = os.getenv("BREWFATHER_API_KEY")
+    def __init__(self, user_id: str | None = None, api_key: str | None = None):
+        user_id = user_id or os.getenv("BREWFATHER_API_USER_ID")
+        api_key = api_key or os.getenv("BREWFATHER_API_KEY")
 
         if not user_id or not api_key:
             raise ValueError(
@@ -84,7 +87,7 @@ class BrewfatherClient:
             if os.getenv("BREWFATHER_MCP_DEBUG"):
                 debug_dir = os.path.join(os.path.dirname(__file__), "..", "..", "debug")
                 os.makedirs(debug_dir, exist_ok=True)
-                debug_filename = url[len(BASE_URL) + 1:].split('?')[0].replace("/", "_").replace(":", "_") + ".json"
+                debug_filename = url[len(BASE_URL) + 1:].split("?")[0].replace("/", "_").replace(":", "_") + ".json"
                 debug_path = os.path.join(debug_dir, debug_filename)
                 with open(debug_path, "w") as debug_file:
                     debug_file.write(response.text)
@@ -116,32 +119,22 @@ class BrewfatherClient:
         return url
 
     # Inventory endpoints
-    async def get_fermentables_list(
-        self, query_params: ListQueryParams | None = None
-    ) -> FermentableList:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.FERMENTABLES}", query_params=query_params
-        )
+    async def get_fermentables_list(self, query_params: ListQueryParams | None = None) -> FermentableList:
+        url = self._build_url(f"inventory/{InventoryCategory.FERMENTABLES}", query_params=query_params)
         json_response = await self._make_request(url)
         return FermentableList.model_validate_json(json_response)
 
     async def get_fermentable_detail(self, id: str) -> FermentableDetail:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.FERMENTABLES}", id=id
-        )
+        url = self._build_url(f"inventory/{InventoryCategory.FERMENTABLES}", id=id)
         json_response = await self._make_request(url)
         return FermentableDetail.model_validate_json(json_response)
 
     async def update_fermentable_inventory(self, id: str, inventory: float) -> None:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.FERMENTABLES}", id=id
-        )
+        url = self._build_url(f"inventory/{InventoryCategory.FERMENTABLES}", id=id)
         await self._make_patch_request(url, {"inventory": inventory})
 
     # Batch endpoints
-    async def get_batches_list(
-        self, query_params: ListQueryParams | None = None
-    ) -> BatchList:
+    async def get_batches_list(self, query_params: ListQueryParams | None = None) -> BatchList:
         url = self._build_url("batches", query_params=query_params)
         json_response = await self._make_request(url)
         return BatchList.model_validate_json(json_response)
@@ -156,9 +149,7 @@ class BrewfatherClient:
         await self._make_patch_request(url, data)
 
     # Recipe endpoints
-    async def get_recipes_list(
-        self, query_params: ListQueryParams | None = None
-    ) -> RecipeList:
+    async def get_recipes_list(self, query_params: ListQueryParams | None = None) -> RecipeList:
         url = self._build_url("recipes", query_params=query_params)
         json_response = await self._make_request(url)
         return RecipeList.model_validate_json(json_response)
@@ -169,70 +160,46 @@ class BrewfatherClient:
         return RecipeDetail.model_validate_json(json_response)
 
     # Add similar patterns for other inventory types (hops, yeasts, miscs)...
-    async def get_hops_list(
-        self, query_params: ListQueryParams | None = None
-    ) -> HopList:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.HOPS}", query_params=query_params
-        )
+    async def get_hops_list(self, query_params: ListQueryParams | None = None) -> HopList:
+        url = self._build_url(f"inventory/{InventoryCategory.HOPS}", query_params=query_params)
         json_response = await self._make_request(url)
         return HopList.model_validate_json(json_response)
-    
+
     async def get_hop_detail(self, id: str) -> HopDetail:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.HOPS}", id=id
-        )
+        url = self._build_url(f"inventory/{InventoryCategory.HOPS}", id=id)
         json_response = await self._make_request(url)
         return HopDetail.model_validate_json(json_response)
-    
+
     async def update_hop_inventory(self, id: str, inventory: float) -> None:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.HOPS}", id=id
-        )
+        url = self._build_url(f"inventory/{InventoryCategory.HOPS}", id=id)
         await self._make_patch_request(url, {"inventory": inventory})
 
-    async def get_yeasts_list(
-        self, query_params: ListQueryParams | None = None
-    ) -> YeastList:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.YEASTS}", query_params=query_params
-        )
+    async def get_yeasts_list(self, query_params: ListQueryParams | None = None) -> YeastList:
+        url = self._build_url(f"inventory/{InventoryCategory.YEASTS}", query_params=query_params)
         json_response = await self._make_request(url)
         return YeastList.model_validate_json(json_response)
-    
+
     async def get_yeast_detail(self, id: str) -> YeastDetail:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.YEASTS}", id=id
-        )
+        url = self._build_url(f"inventory/{InventoryCategory.YEASTS}", id=id)
         json_response = await self._make_request(url)
         return YeastDetail.model_validate_json(json_response)
-    
+
     async def update_yeast_inventory(self, id: str, inventory: float) -> None:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.YEASTS}", id=id
-        )
+        url = self._build_url(f"inventory/{InventoryCategory.YEASTS}", id=id)
         await self._make_patch_request(url, {"inventory": inventory})
 
-    async def get_miscs_list(
-        self, query_params: ListQueryParams | None = None
-    ) -> MiscList:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.MISCS}", query_params=query_params
-        )
+    async def get_miscs_list(self, query_params: ListQueryParams | None = None) -> MiscList:
+        url = self._build_url(f"inventory/{InventoryCategory.MISCS}", query_params=query_params)
         json_response = await self._make_request(url)
         return MiscList.model_validate_json(json_response)
 
     async def get_misc_detail(self, id: str) -> MiscDetail:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.MISCS}", id=id
-        )
+        url = self._build_url(f"inventory/{InventoryCategory.MISCS}", id=id)
         json_response = await self._make_request(url)
         return MiscDetail.model_validate_json(json_response)
-    
+
     async def update_misc_inventory(self, id: str, inventory: float) -> None:
-        url = self._build_url(
-            f"inventory/{InventoryCategory.MISCS}", id=id
-        )
+        url = self._build_url(f"inventory/{InventoryCategory.MISCS}", id=id)
         await self._make_patch_request(url, {"inventory": inventory})
 
     # Brewtracker endpoints
@@ -241,13 +208,13 @@ class BrewfatherClient:
         url = self._build_url("batches", id=f"{batch_id}/brewtracker")
         json_response = await self._make_request(url)
         return BrewTrackerStatus.model_validate_json(json_response)
-    
+
     async def get_batch_readings(self, batch_id: str) -> BatchReadingsList:
         """Get all readings for a batch"""
         url = self._build_url("batches", id=f"{batch_id}/readings")
         json_response = await self._make_request(url)
         return BatchReadingsList.model_validate_json(json_response)
-    
+
     async def get_batch_last_reading(self, batch_id: str) -> LastReading:
         """Get last reading for a batch"""
         url = self._build_url("batches", id=f"{batch_id}/readings/last")
