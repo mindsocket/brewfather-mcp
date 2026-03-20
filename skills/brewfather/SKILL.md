@@ -1,5 +1,5 @@
 ---
-name: brewfather-cli
+name: brewfather
 description: Manage Brewfather homebrewing data — inventory, batches, recipes. Use when working on beer making.
 allowed-tools: Bash(brewfather-cli:*)
 ---
