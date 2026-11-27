@@ -8,6 +8,10 @@ class Timestamp(BaseModel):
     seconds: int = Field(alias="_seconds")
     nanoseconds: int = Field(alias="_nanoseconds")
 
+    model_config = {
+        "populate_by_name": True,
+    }
+
     def to_datetime(self) -> datetime:
         """Convert the timestamp to a Python datetime object."""
         return datetime.fromtimestamp(self.seconds + (self.nanoseconds / 1e9))

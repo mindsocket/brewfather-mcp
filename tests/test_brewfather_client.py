@@ -6,6 +6,7 @@ from respx import MockRouter
 from typing import List, Tuple
 
 from brewfather_mcp.api import BrewfatherClient, BASE_URL
+from brewfather_mcp.types.base import Timestamp
 from brewfather_mcp.types import (
     Batch,
     BatchDetail,
@@ -477,6 +478,30 @@ class TestRecipes:
         assert result.id == recipe_id
         assert result.author == "Brewer Joe"
 
+    @pytest.mark.asyncio
+    async def test_get_recipe_detail_unprefixed_timestamp(
+        self, client: BrewfatherClient, respx_mock: MockRouter
+    ):
+        """Recipes imported from JSON may return seconds/nanoseconds without leading underscores."""
+        recipe_id = "r_imported"
+        mock_data = {
+            "_id": recipe_id,
+            "name": "Imported Recipe",
+            "_created": {"seconds": 1793223980, "nanoseconds": 0},
+            "_timestamp": {"_seconds": 1793223990, "_nanoseconds": 500000000},
+        }
+        respx_mock.get(f"{BASE_URL}/recipes/{recipe_id}").mock(
+            return_value=httpx.Response(200, json=mock_data)
+        )
+        result = await client.get_recipe_detail(recipe_id)
+        assert isinstance(result, RecipeDetail)
+        assert result.created is not None
+        assert result.created.seconds == 1793223980
+        assert result.created.nanoseconds == 0
+        assert result.timestamp is not None
+        assert result.timestamp.seconds == 1793223990
+        assert result.timestamp.nanoseconds == 500000000
+
     @pytest.mark.parametrize("filename,test_id", get_debug_files_by_type(r"^recipes(?:_(.+))?$"))
     @pytest.mark.asyncio
     async def test_recipes_data_validation(self, client: BrewfatherClient, respx_mock: MockRouter, filename: str, test_id: str):
@@ -573,3 +598,32 @@ class TestMiscellaneous:
             result = await client.get_misc_detail(item_id)
             assert isinstance(result, Misc)
             assert result.id == item_id
+
+
+class TestTimestamp:
+    def test_accepts_prefixed_and_unprefixed_keys(self):
+        prefixed = Timestamp.model_validate({"_seconds": 1793223980, "_nanoseconds": 123})
+        unprefixed = Timestamp.model_validate({"seconds": 1793223980, "nanoseconds": 123})
+        assert prefixed == unprefixed
+        assert unprefixed.seconds == 1793223980
+        assert unprefixed.nanoseconds == 123
+        assert unprefixed.model_dump(by_alias=True) == {
+            "_seconds": 1793223980,
+            "_nanoseconds": 123,
+        }
+
+    def test_versioned_model_accepts_unprefixed_timestamp(self):
+        detail = FermentableDetail.model_validate(
+            {
+                "_id": "f_imported",
+                "name": "Pilsner",
+                "inventory": 5.0,
+                "type": "Grain",
+                "_created": {"seconds": 1793223980, "nanoseconds": 0},
+                "_timestamp": {"seconds": 1793223990, "nanoseconds": 250000000},
+            }
+        )
+        assert detail.created is not None
+        assert detail.created.seconds == 1793223980
+        assert detail.timestamp is not None
+        assert detail.timestamp.nanoseconds == 250000000
